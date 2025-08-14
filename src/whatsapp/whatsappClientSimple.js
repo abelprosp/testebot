@@ -535,11 +535,9 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
       // Verifica se é uma conversa reiniciada
       const isRestarted = this.isConversationRestarted(phoneNumber);
       if (isRestarted) {
-        console.log(`🔄 Conversa reiniciada com ${phoneNumber}`);
-        // Limpa dados anteriores da conversa
-        await this.database.clearConversationData(phoneNumber);
-        // NÃO remove controle manual em conversas reiniciadas
-        // this.manualControl.delete(phoneNumber);
+        console.log(`🔄 Conversa retomada com ${phoneNumber} após inatividade. Mantendo histórico da sessão.`);
+        // Mantemos o histórico da conversa para garantir fluidez
+        // e apenas reiniciamos timers de inatividade abaixo
       }
 
       // Verifica se está sob controle manual
