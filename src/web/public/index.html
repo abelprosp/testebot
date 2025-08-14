@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evolux - Dashboard de Atendimento</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }#mfd
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #4a5568;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #4a5568;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #718096;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-card .status {
+            font-size: 1.1em;
+            margin-top: 10px;
+        }
+
+        .status.online {
+            color: #48bb78;
+        }
+
+        .status.offline {
+            color: #f56565;
+        }
+
+        .notification-card {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+        }
+
+        .notification-card h3,
+        .notification-card .value,
+        .notification-card .status {
+            color: white;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .conversations-panel, .control-panel, .notifications-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .notifications-section {
+            margin-top: 20px;
+        }
+
+        .notification-item {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #fdcb6e;
+            transition: all 0.3s ease;
+        }
+
+        .notification-item:hover {
+            background: #ffeaa7;
+            transform: translateX(5px);
+        }
+
+        .notification-title {
+            font-weight: bold;
+            color: #856404;
+            margin-bottom: 5px;
+        }
+
+        .notification-message {
+            color: #856404;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+
+        .notification-time {
+            color: #856404;
+            font-size: 0.8em;
+            font-style: italic;
+        }
+
+        .notification-actions {
+            margin-top: 10px;
+        }
+
+        .panel-title {
+            color: #4a5568;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .conversation-item {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .conversation-item:hover {
+            background: #edf2f7;
+            transform: translateX(5px);
+        }
+
+        .conversation-item.manual {
+            border-left-color: #f56565;
+        }
+
+        .conversation-phone {
+            font-weight: bold;
+            color: #4a5568;
+            margin-bottom: 5px;
+        }
+
+        .conversation-info {
+            color: #718096;
+            font-size: 0.9em;
+        }
+
+        .control-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            color: #4a5568;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-control {
+            background: white;
+            cursor: pointer;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #f56565;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #e53e3e;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ed8936;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #dd6b20;
+            transform: translateY(-2px);
+        }
+
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+
+        .message-area {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        .notification-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            background: #f7fafc;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #e2e8f0;
+        }
+
+        .notification-item {
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        .notification-item:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+        .notification-item.company {
+            border-left: 4px solid #667eea;
+        }
+
+        .notification-item.other {
+            border-left: 4px solid #ed8936;
+        }
+
+        .notification-item.candidate {
+            border-left: 4px solid #48bb78;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .notification-time {
+            font-size: 0.8em;
+            color: #718096;
+        }
+
+        .notification-message {
+            color: #4a5568;
+            line-height: 1.5;
+        }
+
+        .notification-phone {
+            font-weight: 500;
+            color: #667eea;
+            margin-top: 5px;
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #feb2b2;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2a4365;
+            border: 1px solid #90cdf4;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            font-size: 1.5em;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: rotate(180deg);
+            background: #5a67d8;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            }
+        }
+
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 0;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #4a5568;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .modal-body {
+            padding: 20px;
+            text-align: center;
+        }
+
+        #qrCodeContainer {
+            margin: 20px 0;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 2px dashed #cbd5e0;
+        }
+
+        #qrCodeContainer img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #qrInstructions {
+            background: #e6fffa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #38b2ac;
+        }
+
+        #qrInstructions p {
+            margin: 5px 0;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <div>
+                    <h1>🎛️ Evolux Dashboard</h1>
+                    <p>Plataforma de Controle Manual de Atendimento</p>
+                </div>
+                <button class="btn btn-danger" onclick="logout()">🚪 Sair</button>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Status WhatsApp</h3>
+                <div class="value" id="whatsapp-status">❌</div>
+                <div class="status" id="whatsapp-text">Desconectado</div>
+                                 <button class="btn btn-primary btn-sm" onclick="generateQRCode()" id="qr-btn" style="margin-top: 10px;">
+                     📱 Gerar QR Code
+                 </button>
+                 <button class="btn btn-warning btn-sm" onclick="forceDisconnect()" id="disconnect-btn" style="margin-top: 5px;">
+                     🔄 Forçar Reconexão
+                 </button>
+            </div>
+            <div class="stat-card">
+                <h3>Conversas Ativas</h3>
+                <div class="value" id="active-conversations">0</div>
+                <div class="status">Total</div>
+            </div>
+            <div class="stat-card">
+                <h3>Controle Manual</h3>
+                <div class="value" id="manual-control">0</div>
+                <div class="status">Ativas</div>
+            </div>
+            <div class="stat-card">
+                <h3>Vagas Ativas</h3>
+                <div class="value" id="active-jobs">0</div>
+                <div class="status">Disponíveis</div>
+            </div>
+            <div class="stat-card notification-card">
+                <h3>🔔 Notificações</h3>
+                <div class="value" id="notifications-count">0</div>
+                <div class="status">Empresas</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="conversations-panel">
+                <h2 class="panel-title">📱 Conversas Ativas</h2>
+                <div id="conversations-list">
+                    <p style="color: #718096; text-align: center;">Carregando conversas...</p>
+                </div>
+            </div>
+
+            <div class="control-panel">
+                <h2 class="panel-title">🎛️ Controle Manual</h2>
+                <div id="alerts"></div>
+                
+                <div class="control-form">
+                    <div class="form-group">
+                        <label for="phoneNumber">Número do Telefone:</label>
+                        <select id="phoneNumber" class="form-control">
+                            <option value="">Selecione um número ativo...</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="agentId">ID do Agente:</label>
+                        <input type="text" id="agentId" placeholder="atendente_joao">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="message">Mensagem:</label>
+                        <textarea id="message" class="message-area" placeholder="Digite sua mensagem..."></textarea>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn btn-primary" onclick="takeControl()">👤 Assumir Controle</button>
+                        <button class="btn btn-success" onclick="sendMessage()">📱 Enviar Mensagem</button>
+                        <button class="btn btn-danger" onclick="releaseControl()">🤖 Liberar Controle</button>
+                        <button class="btn btn-warning" onclick="checkStatus()">🔍 Verificar Status</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seção de Notificações -->
+        <div class="notifications-section" id="notifications-section" style="display: none;">
+            <div class="notifications-panel">
+                <h2 class="panel-title">🔔 Notificações</h2>
+                
+                <!-- Abas para diferentes tipos de notificação -->
+                <div class="notification-tabs">
+                    <button class="tab-btn active" onclick="showNotificationTab('companies')">🏢 Empresas</button>
+                    <button class="tab-btn" onclick="showNotificationTab('candidates')">👤 Candidatos</button>
+                    <button class="tab-btn" onclick="showNotificationTab('others')">❓ Outros Assuntos</button>
+                    <button class="tab-btn" onclick="showNotificationTab('all')">📋 Todas</button>
+                </div>
+                
+                <div id="notifications-list">
+                    <p style="color: #718096; text-align: center;">Nenhuma notificação</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <button class="refresh-btn" onclick="loadStats()">🔄</button>
+
+    <!-- Modal para QR Code -->
+    <div id="qrModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📱 Conectar WhatsApp</h2>
+                <span class="close" onclick="closeQRModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="qrCodeContainer">
+                    <p>Gerando QR Code...</p>
+                </div>
+                <div id="qrInstructions" style="margin-top: 20px; text-align: center;">
+                    <p><strong>Instruções:</strong></p>
+                    <p>1. Abra o WhatsApp no seu celular</p>
+                    <p>2. Vá em Configurações > Dispositivos vinculados</p>
+                    <p>3. Toque em "Vincular um dispositivo"</p>
+                    <p>4. Escaneie o QR Code acima</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configurações
+        const API_BASE = '/api';
+        let currentStats = null;
+        let activeNotificationTab = 'companies';
+        let updateInterval;
+
+        // Verifica autenticação
+        function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                window.location.href = '/login';
+                return false;
+            }
+            return token;
+        }
+
+        // Função para fazer requisições autenticadas
+        async function authenticatedFetch(url, options = {}) {
+            const token = checkAuth();
+            if (!token) return;
+
+            const headers = {
+                'Content-Type': 'application/json',
+                'x-auth-token': token,
+                ...options.headers
+            };
+
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers
+                });
+
+                if (response.status === 401) {
+                    localStorage.removeItem('authToken');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                return response;
+            } catch (error) {
+                console.error('Erro na requisição:', error);
+                throw error;
+            }
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('authToken');
+            window.location.href = '/login';
+        }
+
+        // Carregar estatísticas
+        async function loadStats() {
+            try {
+                console.log('🔄 Carregando estatísticas...');
+                const response = await authenticatedFetch('/api/stats');
+                console.log('📊 Resposta da API:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('📊 Dados recebidos:', data);
+                
+                if (data.success) {
+                    currentStats = data.data;
+                    console.log('✅ Atualizando estatísticas...');
+                    updateStats(data.data);
+                    updateConversations(data.data.activeConversations);
+                    updatePhoneNumberSelect(data.data.activeConversations);
+                } else {
+                    console.error('❌ API retornou erro:', data.error);
+                    showAlert('Erro ao carregar estatísticas: ' + (data.error || 'Erro desconhecido'), 'error');
+                }
+
+                // Carregar notificações
+                console.log('🔔 Carregando notificações...');
+                await loadNotifications();
+            } catch (error) {
+                console.error('❌ Erro ao carregar estatísticas:', error);
+                showAlert('Erro ao carregar estatísticas: ' + error.message, 'error');
+            }
+        }
+
+        // Atualizar estatísticas
+        function updateStats(stats) {
+            document.getElementById('whatsapp-status').textContent = stats.whatsappConnected ? '✅' : '❌';
+            document.getElementById('whatsapp-text').textContent = stats.whatsappConnected ? 'Conectado' : 'Desconectado';
+            document.getElementById('whatsapp-text').className = `status ${stats.whatsappConnected ? 'online' : 'offline'}`;
+            
+            // Mostra/esconde os botões baseado no status
+            const qrBtn = document.getElementById('qr-btn');
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            if (stats.whatsappConnected) {
+                qrBtn.style.display = 'none';
+                disconnectBtn.style.display = 'block';
+            } else {
+                qrBtn.style.display = 'block';
+                disconnectBtn.style.display = 'none';
+            }
+            
+            document.getElementById('active-conversations').textContent = stats.activeConversations.total;
+            document.getElementById('manual-control').textContent = stats.activeConversations.manualControl.total;
+            document.getElementById('active-jobs').textContent = stats.activeJobs;
+            
+            // O contador de notificações será atualizado pela função loadNotifications
+        }
+
+        // Atualizar lista de conversas
+        function updateConversations(activeConversations) {
+            const container = document.getElementById('conversations-list');
+            
+            if (activeConversations.total === 0) {
+                container.innerHTML = '<p style="color: #718096; text-align: center;">Nenhuma conversa ativa</p>';
+                return;
+            }
+
+            let html = '';
+            
+            // Conversas normais
+            activeConversations.conversations.forEach(conv => {
+                html += `
+                    <div class="conversation-item">
+                        <div class="conversation-phone">${conv.phoneNumber}</div>
+                        <div class="conversation-info">
+                            ⏰ ${conv.timeRemaining}s restantes | 
+                            📅 ${new Date(conv.lastActivity).toLocaleTimeString()}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // Conversas em controle manual
+            activeConversations.manualControl.conversations.forEach(conv => {
+                html += `
+                    <div class="conversation-item manual">
+                        <div class="conversation-phone">${conv.phoneNumber}</div>
+                        <div class="conversation-info">
+                            👤 ${conv.manualControl.agentId} | 
+                            📅 ${new Date(conv.manualControl.takenAt).toLocaleTimeString()}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Atualizar select de números de telefone
+        function updatePhoneNumberSelect(activeConversations) {
+            console.log('�� Atualizando select de números:', activeConversations);
+            
+            const select = document.getElementById('phoneNumber');
+            const currentValue = select.value;
+            
+            // Limpar opções existentes
+            select.innerHTML = '<option value="">Selecione um número ativo...</option>';
+            
+            if (!activeConversations || activeConversations.total === 0) {
+                console.log('📱 Nenhuma conversa ativa encontrada');
+                return;
+            }
+
+            console.log('📱 Total de conversas:', activeConversations.total);
+            console.log('📱 Conversas normais:', activeConversations.conversations);
+            console.log('📱 Conversas em controle manual:', activeConversations.manualControl.conversations);
+
+            // Adicionar conversas normais
+            if (activeConversations.conversations && activeConversations.conversations.length > 0) {
+                activeConversations.conversations.forEach(conv => {
+                    console.log('📱 Adicionando conversa normal:', conv.phoneNumber);
+                    const option = document.createElement('option');
+                    option.value = conv.phoneNumber;
+                    option.textContent = `${conv.phoneNumber} (Ativo)`;
+                    select.appendChild(option);
+                });
+            }
+            
+            // Adicionar conversas em controle manual
+            if (activeConversations.manualControl && activeConversations.manualControl.conversations && activeConversations.manualControl.conversations.length > 0) {
+                activeConversations.manualControl.conversations.forEach(conv => {
+                    console.log('📱 Adicionando conversa manual:', conv.phoneNumber);
+                    const option = document.createElement('option');
+                    option.value = conv.phoneNumber;
+                    option.textContent = `${conv.phoneNumber} (Manual - ${conv.manualControl.agentId})`;
+                    select.appendChild(option);
+                });
+            }
+
+            // Restaurar valor selecionado se ainda existir
+            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+            }
+            
+            console.log('📱 Select atualizado com', select.options.length - 1, 'opções');
+        }
+
+        // Variável para controlar a aba ativa de notificações
+
+        // Mostrar aba de notificação
+        function showNotificationTab(tab) {
+            activeNotificationTab = tab;
+            
+            // Atualizar botões das abas
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Recarregar notificações da aba selecionada
+            loadNotifications();
+        }
+
+        // Carregar notificações
+        async function loadNotifications() {
+            try {
+                console.log('🔔 Carregando notificações da aba:', activeNotificationTab);
+                
+                let endpoint = '/api/notifications/companies';
+                if (activeNotificationTab === 'candidates') {
+                    endpoint = '/api/notifications/candidates';
+                } else if (activeNotificationTab === 'others') {
+                    endpoint = '/api/notifications/others';
+                } else if (activeNotificationTab === 'all') {
+                    endpoint = '/api/notifications/all';
+                }
+                
+                const response = await authenticatedFetch(endpoint);
+                console.log('🔔 Resposta das notificações:', response.status);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('🔔 Dados das notificações:', data);
+                
+                if (data.success) {
+                    console.log('✅ Atualizando notificações...');
+                    updateNotifications(data.data);
+                    updateNotificationsCount(data.data.length);
+                } else {
+                    console.error('❌ API de notificações retornou erro:', data.error);
+                }
+            } catch (error) {
+                console.error('❌ Erro ao carregar notificações:', error);
+            }
+        }
+
+        // Atualizar lista de notificações
+        function updateNotifications(notifications) {
+            console.log('🔔 Atualizando notificações:', notifications);
+            
+            const container = document.getElementById('notifications-list');
+            const section = document.getElementById('notifications-section');
+            
+            if (!notifications || notifications.length === 0) {
+                console.log('🔔 Nenhuma notificação para exibir');
+                container.innerHTML = '<p style="color: #718096; text-align: center;">Nenhuma notificação</p>';
+                section.style.display = 'none';
+                return;
+            }
+
+            console.log('🔔 Exibindo', notifications.length, 'notificações');
+            section.style.display = 'block';
+            let html = '';
+            
+            notifications.forEach(notification => {
+                console.log('🔔 Processando notificação:', notification);
+                const notificationClass = notification.type === 'company' ? 'company' : 
+                                        notification.type === 'candidate' ? 'candidate' : 'other';
+                const notificationIcon = notification.type === 'company' ? '🏢' : 
+                                       notification.type === 'candidate' ? '👤' : '❓';
+                
+                html += `
+                    <div class="notification-item ${notificationClass}">
+                        <div class="notification-header">
+                            <div class="notification-title">${notificationIcon} ${notification.title}</div>
+                            <div class="notification-time">📅 ${new Date(notification.created_at).toLocaleString()}</div>
+                        </div>
+                        <div class="notification-message">${notification.message}</div>
+                        <div class="notification-phone">📱 ${notification.phone_number}</div>
+                        <div class="notification-actions" style="margin-top: 10px;">
+                            <button class="btn btn-primary btn-sm" onclick="markAsRead(${notification.id})">✅ Marcar como lida</button>
+                            <button class="btn btn-success btn-sm" onclick="takeControlFromNotification('${notification.phone_number}')">👤 Assumir Controle</button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            console.log('🔔 HTML das notificações atualizado');
+        }
+
+        // Atualizar contador de notificações
+        function updateNotificationsCount(count) {
+            console.log('🔔 Atualizando contador de notificações:', count);
+            const element = document.getElementById('notifications-count');
+            if (element) {
+                element.textContent = count;
+                console.log('🔔 Contador atualizado para:', count);
+            } else {
+                console.error('❌ Elemento notifications-count não encontrado');
+            }
+        }
+
+        // Marcar notificação como lida
+        async function markAsRead(notificationId) {
+            try {
+                const response = await authenticatedFetch('/api/notifications/read', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notificationId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Notificação marcada como lida!', 'success');
+                    loadNotifications(); // Recarregar notificações
+                } else {
+                    showAlert(data.error || 'Erro ao marcar notificação', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao marcar notificação', 'error');
+            }
+        }
+
+        // Assumir controle a partir de notificação
+        async function takeControlFromNotification(phoneNumber) {
+            const agentId = document.getElementById('agentId').value || 'human';
+            
+            try {
+                const response = await authenticatedFetch('/api/take-control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber, agentId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Controle assumido com sucesso!', 'success');
+                    document.getElementById('phoneNumber').value = phoneNumber;
+                    loadStats();
+                } else {
+                    showAlert(data.error || 'Erro ao assumir controle', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao assumir controle', 'error');
+            }
+        }
+
+        // Assumir controle
+        async function takeControl() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const agentId = document.getElementById('agentId').value || 'human';
+            
+            if (!phoneNumber) {
+                showAlert('Digite o número do telefone', 'error');
+                return;
+            }
+            
+            try {
+                const response = await authenticatedFetch('/api/take-control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber, agentId })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Controle assumido com sucesso!', 'success');
+                    loadStats();
+                } else {
+                    showAlert(data.error || 'Erro ao assumir controle', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao assumir controle', 'error');
+            }
+        }
+
+        // Enviar mensagem
+        async function sendMessage() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            const message = document.getElementById('message').value;
+            
+            if (!phoneNumber || !message) {
+                showAlert('Digite o número do telefone e a mensagem', 'error');
+                return;
+            }
+            
+            try {
+                const response = await authenticatedFetch('/api/send-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber, message })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Mensagem enviada com sucesso!', 'success');
+                    document.getElementById('message').value = '';
+                } else {
+                    showAlert(data.error || 'Erro ao enviar mensagem', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao enviar mensagem', 'error');
+            }
+        }
+
+        // Liberar controle
+        async function releaseControl() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            
+            if (!phoneNumber) {
+                showAlert('Digite o número do telefone', 'error');
+                return;
+            }
+            
+            try {
+                const response = await authenticatedFetch('/api/release-control', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ phoneNumber })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('Controle liberado com sucesso!', 'success');
+                    loadStats();
+                } else {
+                    showAlert(data.error || 'Erro ao liberar controle', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao liberar controle', 'error');
+            }
+        }
+
+        // Verificar status
+        async function checkStatus() {
+            const phoneNumber = document.getElementById('phoneNumber').value;
+            
+            if (!phoneNumber) {
+                showAlert('Digite o número do telefone', 'error');
+                return;
+            }
+            
+            try {
+                const response = await authenticatedFetch(`/api/control-status/${phoneNumber}`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    const status = data.data.isManualControl ? 'em controle manual' : 'livre';
+                    const agent = data.data.manualInfo ? ` (${data.data.manualInfo.agentId})` : '';
+                    showAlert(`Status: ${status}${agent}`, 'info');
+                } else {
+                    showAlert(data.error || 'Erro ao verificar status', 'error');
+                }
+            } catch (error) {
+                showAlert('Erro ao verificar status', 'error');
+            }
+        }
+
+        // Mostrar alerta
+        function showAlert(message, type) {
+            const alertsContainer = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            alertsContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+
+        // Carregar estatísticas automaticamente
+        loadStats();
+        
+        // Atualizar a cada 10 segundos
+        setInterval(loadStats, 10000);
+
+        // Funções para QR Code
+        async function generateQRCode() {
+            try {
+                console.log('📱 Gerando QR Code...');
+                
+                // Mostra o modal
+                document.getElementById('qrModal').style.display = 'block';
+                document.getElementById('qrCodeContainer').innerHTML = '<p>Gerando QR Code...</p>';
+                
+                const response = await authenticatedFetch('/api/whatsapp/qrcode');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success && data.data.qrCode) {
+                    console.log('✅ QR Code gerado com sucesso');
+                    
+                    // Exibe o QR Code
+                    document.getElementById('qrCodeContainer').innerHTML = `
+                        <img src="data:image/png;base64,${data.data.qrCode}" alt="QR Code WhatsApp" />
+                        <p style="margin-top: 10px; color: #38a169; font-weight: bold;">
+                            ✅ QR Code gerado! Escaneie com o WhatsApp.
+                        </p>
+                    `;
+                    
+                    // Inicia verificação periódica do status
+                    startStatusCheck();
+                } else {
+                    console.log('❌ Não foi possível gerar QR Code:', data.error);
+                    document.getElementById('qrCodeContainer').innerHTML = `
+                        <p style="color: #e53e3e; font-weight: bold;">
+                            ❌ ${data.error || 'Erro ao gerar QR Code'}
+                        </p>
+                        <button class="btn btn-primary" onclick="generateQRCode()">
+                            🔄 Tentar Novamente
+                        </button>
+                    `;
+                }
+            } catch (error) {
+                console.error('❌ Erro ao gerar QR Code:', error);
+                document.getElementById('qrCodeContainer').innerHTML = `
+                    <p style="color: #e53e3e; font-weight: bold;">
+                        ❌ Erro ao gerar QR Code: ${error.message}
+                    </p>
+                    <button class="btn btn-primary" onclick="generateQRCode()">
+                        🔄 Tentar Novamente
+                    </button>
+                `;
+            }
+        }
+
+        function closeQRModal() {
+            document.getElementById('qrModal').style.display = 'none';
+            stopStatusCheck();
+        }
+
+        let statusCheckInterval;
+
+        function startStatusCheck() {
+            // Para qualquer verificação anterior
+            stopStatusCheck();
+            
+            // Inicia verificação a cada 3 segundos
+            statusCheckInterval = setInterval(async () => {
+                try {
+                    const response = await authenticatedFetch('/api/whatsapp/status');
+                    const data = await response.json();
+                    
+                    if (data.success && data.data.connected) {
+                        console.log('✅ WhatsApp conectado!');
+                        
+                        // Fecha o modal
+                        closeQRModal();
+                        
+                        // Atualiza as estatísticas
+                        loadStats();
+                        
+                        // Mostra mensagem de sucesso
+                        showAlert('WhatsApp conectado com sucesso!', 'success');
+                    }
+                } catch (error) {
+                    console.error('❌ Erro ao verificar status:', error);
+                }
+            }, 3000);
+        }
+
+        function stopStatusCheck() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+                statusCheckInterval = null;
+            }
+        }
+
+        // Forçar desconexão e reconexão
+        async function forceDisconnect() {
+            try {
+                console.log('🔄 Forçando desconexão do WhatsApp...');
+                
+                const response = await authenticatedFetch('/api/whatsapp/disconnect', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('✅ WhatsApp desconectado com sucesso');
+                    showAlert('WhatsApp desconectado. Gerando novo QR Code...', 'info');
+                    
+                    // Aguarda um pouco e tenta gerar novo QR Code
+                    setTimeout(() => {
+                        generateQRCode();
+                    }, 2000);
+                } else {
+                    console.log('❌ Erro ao desconectar:', data.error);
+                    showAlert(data.error || 'Erro ao desconectar WhatsApp', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Erro ao forçar desconexão:', error);
+                showAlert('Erro ao forçar desconexão: ' + error.message, 'error');
+            }
+        }
+
+        // Fecha o modal se clicar fora dele
+        window.onclick = function(event) {
+            const modal = document.getElementById('qrModal');
+            if (event.target === modal) {
+                closeQRModal();
+            }
+        }
+    </script>
+</body>
+</html>
