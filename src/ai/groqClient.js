@@ -214,6 +214,12 @@ Responda sempre em português brasileiro de forma natural, calorosa e profission
   isOutOfScope(message) {
     const msg = message.toLowerCase();
 
+    // Frases de continuidade/consentimento NUNCA são fora do escopo
+    const continueRegex = /(pode\s+(fazer|mandar)\s+(mais\s+)?perguntas|faça\s+(mais\s+)?perguntas|pode\s+perguntar|pode\s+continuar|pode\s+prosseguir|sim\b|ok\b|okay\b|blz\b|beleza\b|claro\b|certo\b|tudo\s+bem\b)/i;
+    if (continueRegex.test(msg)) {
+      return false;
+    }
+
     // Whitelist: termos comuns que indicam interesse em VAGAS de tecnologia/atendimento
     const techJobKeywords = [
       'software','hardware','informática','informatica','ti','t.i.','suporte','técnico','tecnico',
