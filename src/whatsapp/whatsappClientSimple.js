@@ -526,6 +526,41 @@ Obrigado por escolher a ${config.company.name}! 🙏
       // Salva a mensagem do usuário
       await this.saveUserMessage(phoneNumber, messageText);
 
+      // Detecta anexos/documentos/links e orienta cadastro
+      const containsUrl = (text) => {
+        if (!text || typeof text !== 'string') return false;
+        const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
+        return urlRegex.test(text);
+      };
+
+      const isAttachment = !!message.hasMedia || (message.type && message.type !== 'chat');
+      const isDocument = message.type === 'document';
+      const isLinkOnly = containsUrl(messageText);
+
+      if (isAttachment || isDocument || isLinkOnly) {
+        try {
+          const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
+          const noticeParts = [];
+          if (isDocument) noticeParts.push('documento');
+          else if (isAttachment) noticeParts.push('anexo');
+          if (isLinkOnly) noticeParts.push('link');
+          const whatReceived = noticeParts.length ? noticeParts.join(' e ') : 'conteúdo';
+
+          const guidance = `📄 Recebi ${whatReceived}.
+
+Para prosseguir com o envio de documentos/arquivos, utilize nosso formulário de cadastro:
+${registrationLink}
+
+No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, nossa equipe dará continuidade ao seu atendimento.`;
+
+          await this.sendMessage(phoneNumber, guidance);
+          await this.saveAgentMessage(phoneNumber, guidance);
+          return;
+        } catch (sendError) {
+          console.error('Erro ao orientar cadastro para anexos/links:', sendError);
+        }
+      }
+
       // Processa a mensagem e gera resposta
       const response = await this.processMessage(phoneNumber, messageText);
 
