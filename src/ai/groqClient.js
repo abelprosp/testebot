@@ -401,10 +401,7 @@ Escolha uma das opções acima e eu direcionarei você da melhor forma! 😊`;
     // Palavras-chave específicas para finalização
     const endKeywords = [
       'encerrar', 'finalizar', 'terminar', 'acabar', 'fim', 'sair',
-      'tchau', 'adeus', 'até logo', 'até mais', 'obrigado', 'obrigada',
-      'valeu', 'ok', 'okay', 'beleza', 'blz', 'entendi', 'compreendi',
-      'perfeito', 'ótimo', 'excelente', 'muito bem', 'tudo bem', 'td bem',
-      'tudo certo', 'certo', 'claro', 'entendido', 'combinado'
+      'tchau', 'adeus', 'até logo', 'até mais'
     ];
     
     // Verifica se a mensagem é EXATAMENTE uma dessas palavras
