@@ -43,6 +43,7 @@ class GroqClient {
     const company = config.company;
     const jobs = await this.jobService.getAllJobs();
     const agorahora = new Date();
+    const hora = agorahora.getHours()
     // Se é empresa, não mostra vagas disponíveis
     const isCompany = context.userType === 'company';
     
@@ -68,7 +69,7 @@ SEU PERSONALIDADE:
 SUAS FUNÇÕES (APENAS):
 
 1. PARA EMPRESAS (que querem contratar a Evolux):
-- Verificar se está no horário ${agorahora} comercial (8h-12h e 13h30-18h, Segunda a Sexta)
+- Verificar se está no horário ${hora} comercial (8h-12h e 13h30-18h, Segunda a Sexta)
 - Se fora do horário: informar de forma cordial que retornaremos o contato
 - Se no horário: pedir para aguardar um atendente humano de forma acolhedora
 - NUNCA mostrar vagas disponíveis para empresas
