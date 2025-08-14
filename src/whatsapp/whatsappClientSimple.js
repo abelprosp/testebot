@@ -429,7 +429,7 @@ Obrigado pela paciência! 🙏
       // Configura um novo timeout mais longo para finalizar se não responder
       const finalTimeoutId = setTimeout(async () => {
         await this.finalizeConversation(phoneNumber);
-      }, 300000); // 5 minutos adicionais
+      }, 600000); // 10 minutos adicionais
 
       // Atualiza o registro da conversa
       this.activeConversations.set(phoneNumber, {
