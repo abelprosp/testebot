@@ -189,7 +189,15 @@ Responda sempre em português brasileiro de forma natural, calorosa e profission
                messageLower.includes('emprego') || messageLower.includes('vaga') ||
                messageLower.includes('trabalhar') || messageLower.includes('trabalho') ||
                messageLower.includes('desempregado') || messageLower.includes('oportunidade') ||
-               messageLower.includes('procurando emprego') || messageLower.includes('quero trabalhar')) {
+               messageLower.includes('procurando emprego') || messageLower.includes('quero trabalhar') ||
+               // Palavras comuns de áreas de tecnologia/atendimento que indicam interesse em vagas
+               messageLower.includes('software') || messageLower.includes('hardware') ||
+               messageLower.includes('informática') || messageLower.includes('informatica') ||
+               messageLower.includes('ti') || messageLower.includes('t.i.') ||
+               messageLower.includes('suporte') || messageLower.includes('técnico') || messageLower.includes('tecnico') ||
+               messageLower.includes('desenvolvedor') || messageLower.includes('programador') ||
+               messageLower.includes('analista') || messageLower.includes('qa') || messageLower.includes('testes') ||
+               messageLower.includes('infra') || messageLower.includes('rede') || messageLower.includes('redes')) {
       return 'candidate';
     } else if (messageLower.includes('outros') || messageLower.includes('outras dúvidas') ||
                messageLower.includes('outros assuntos') || messageLower.includes('dúvidas') ||
@@ -204,29 +212,33 @@ Responda sempre em português brasileiro de forma natural, calorosa e profission
 
   // Detecta se a mensagem está fora do escopo de RH
   isOutOfScope(message) {
-    const messageLower = message.toLowerCase();
-    
-    // Palavras-chave que indicam solicitações fora do escopo
-    const outOfScopeKeywords = [
-      // Programação e tecnologia
-      'código', 'programa', 'script', 'python', 'javascript', 'java', 'html', 'css',
-      'desenvolver', 'programar', 'criar código', 'executar', 'algoritmo', 'função',
-      'api', 'database', 'servidor', 'aplicação', 'app', 'software', 'sistema',
-      
-      // Outros assuntos técnicos
-      'matemática', 'física', 'química', 'biologia', 'história', 'geografia',
-      'política', 'economia', 'finanças', 'investimentos', 'criptomoedas',
-      
-      // Assuntos pessoais ou confidenciais
-      'senha', 'cpf', 'rg', 'cartão', 'banco', 'conta bancária', 'dados pessoais',
-      'informações confidenciais', 'segredos', 'privacidade',
-      
-      // Assuntos não relacionados a RH
-      'receita', 'culinária', 'música', 'filmes', 'esportes', 'viagens', 'turismo',
-      'saúde', 'medicina', 'direito', 'advocacia', 'engenharia', 'arquitetura'
+    const msg = message.toLowerCase();
+
+    // Whitelist: termos comuns que indicam interesse em VAGAS de tecnologia/atendimento
+    const techJobKeywords = [
+      'software','hardware','informática','informatica','ti','t.i.','suporte','técnico','tecnico',
+      'desenvolvedor','programador','analista','qa','testes','infra','rede','redes','sistemas','banco de dados'
     ];
-    
-    return outOfScopeKeywords.some(keyword => messageLower.includes(keyword));
+    if (techJobKeywords.some(k => msg.includes(k))) {
+      return false; // trata como assunto de recrutamento
+    }
+
+    // Heurística para pedidos de ajuda técnica (fora do escopo): verbo de ação + termo técnico
+    const codeVerbs = ['escreva','escrever','crie','criar','gere','gerar','execute','executar','rode','rodar','compile','compilar','debug','depurar','corrija','conserte','resolver','como fazer','how to','script','algoritmo','função','comando','query','consulta'];
+    const techNouns = ['python','javascript','java','html','css','react','node','api','sql','docker','kubernetes','linux','windows','bash','shell','powershell','c#','golang','go','php','ruby','laravel','spring','django','flask','pandas'];
+    const hasVerb = codeVerbs.some(v => msg.includes(v));
+    const hasTech = techNouns.some(t => msg.includes(t));
+    if (hasVerb && hasTech) {
+      return true;
+    }
+
+    // Outros assuntos nitidamente fora de RH
+    const clearlyOut = [
+      'matemática','física','química','biologia','história','geografia','política','economia','finanças','investimentos','criptomoedas',
+      'senha','cpf','rg','cartão','banco','conta bancária','dados pessoais','informações confidenciais','segredos','privacidade',
+      'receita','culinária','música','filmes','esportes','viagens','turismo','saúde','medicina','direito','advocacia','engenharia','arquitetura'
+    ];
+    return clearlyOut.some(k => msg.includes(k));
   }
 
   // Resposta padrão para solicitações fora do escopo
