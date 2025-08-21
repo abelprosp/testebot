@@ -131,6 +131,15 @@ class WhatsAppClient {
 
       console.log(`📱 Nova mensagem de ${phoneNumber}: ${messageText}`);
 
+      // Verifica se a conversa foi finalizada
+      const conversation = await this.database.getConversation(phoneNumber);
+      if (conversation && conversation.status === 'finalized') {
+        console.log(`🆕 Nova mensagem após finalização para ${phoneNumber} - criando nova conversa`);
+        // Cria uma nova conversa para a nova mensagem
+        await this.database.createConversation(phoneNumber, 'unknown');
+        // Continua o processamento normalmente
+      }
+
       // Salva a mensagem do usuário
       await this.saveUserMessage(phoneNumber, messageText);
 
@@ -498,6 +507,12 @@ Obrigado pela confiança! 🙏
     try {
       console.log(`🔚 Finalizando conversa para ${phoneNumber}`);
       
+      // Desabilita controle manual PRIMEIRO
+      await this.database.disableManualControl(phoneNumber);
+      
+      // Finaliza a conversa no banco de dados
+      await this.database.finalizeConversation(phoneNumber);
+      
       // Envia mensagem de finalização
       const finalMessage = this.getFinalizationMessage();
       await this.sendMessage(phoneNumber, finalMessage);
@@ -505,14 +520,10 @@ Obrigado pela confiança! 🙏
       // Salva a mensagem de finalização
       await this.saveAgentMessage(phoneNumber, finalMessage);
       
-      // Desabilita controle manual
-      await this.database.disableManualControl(phoneNumber);
+      // IMPORTANTE: Marca que esta conversa foi finalizada para evitar reinício automático
+      await this.database.markConversationAsFinalized(phoneNumber);
       
-      // Finaliza a conversa no banco de dados
-      await this.database.finalizeConversation(phoneNumber);
-      
-      // IMPORTANTE: Não reinicia automaticamente o bot para evitar ciclo infinito
-      console.log(`✅ Conversa finalizada para ${phoneNumber} - Bot não reiniciado automaticamente`);
+      console.log(`✅ Conversa finalizada para ${phoneNumber} - Bot não reiniciará automaticamente`);
       
       return {
         success: true,

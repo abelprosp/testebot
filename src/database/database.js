@@ -296,6 +296,19 @@ class Database {
     });
   }
 
+  async markConversationAsFinalized(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'UPDATE conversations SET status = "finalized", finalized_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
+        [phoneNumber],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes);
+        }
+      );
+    });
+  }
+
   async saveMessage(conversationId, message, sender) {
     return new Promise((resolve, reject) => {
       this.db.run(
