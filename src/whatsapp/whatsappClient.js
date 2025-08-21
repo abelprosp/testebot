@@ -155,23 +155,22 @@ class WhatsAppClient {
       if (isFirstMessage) {
         console.log(`🆕 Primeira mensagem de ${phoneNumber} - aguardando liberação manual`);
         await this.sendMessage(phoneNumber, this.getFirstMessageResponse());
-        return;
+        return; // IMPORTANTE: Para aqui e não processa automaticamente
       }
 
-      // IMPORTANTE: Verifica se o controle manual foi habilitado por um atendente
-      // Se não foi habilitado manualmente, não processa automaticamente
-      if (!manualControl.enabled && !isFirstMessage) {
-        console.log(`🤖 Bot em modo automático para ${phoneNumber} - processando mensagem`);
-        
-        // Processa a mensagem e gera resposta
-        const response = await this.processMessage(phoneNumber, messageText);
+      // IMPORTANTE: Se não está em controle manual E não é primeira mensagem, 
+      // significa que o bot deve estar em modo automático (liberado por atendente)
+      // Neste caso, processa normalmente
+      console.log(`🤖 Bot em modo automático para ${phoneNumber} - processando mensagem`);
+      
+      // Processa a mensagem e gera resposta
+      const response = await this.processMessage(phoneNumber, messageText);
 
-        // Envia a resposta
-        await this.sendMessage(phoneNumber, response);
+      // Envia a resposta
+      await this.sendMessage(phoneNumber, response);
 
-        // Salva a resposta do agente
-        await this.saveAgentMessage(phoneNumber, response);
-      }
+      // Salva a resposta do agente
+      await this.saveAgentMessage(phoneNumber, response);
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
@@ -452,11 +451,11 @@ Obrigado pela paciência! 🙏
 
   // Método para resposta da primeira mensagem
   getFirstMessageResponse() {
-    return `🆕 **Nova Mensagem Recebida**
+    return `🆕 **Mensagem Recebida**
 
-Olá! Recebemos sua mensagem e um de nossos especialistas irá atendê-lo em breve.
+Olá! Recebemos sua mensagem.
 
-⏰ Por favor, aguarde um momento enquanto um atendente humano assume o atendimento.
+⏰ Um atendente humano irá assumir o atendimento em breve.
 
 📞 Nossos especialistas estão prontos para ajudá-lo com:
 • Busca de vagas de emprego
@@ -467,7 +466,7 @@ Olá! Recebemos sua mensagem e um de nossos especialistas irá atendê-lo em bre
 Obrigado pela paciência! 🙏
 
 ---
-*Um atendente humano entrará em contato em breve.*`;
+*Aguarde, um atendente humano entrará em contato.*`;
   }
 
   // Método para mensagem de finalização
