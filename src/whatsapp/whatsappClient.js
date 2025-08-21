@@ -456,17 +456,18 @@ Obrigado pela paciência! 🙏
 
   // Método para mensagem de finalização
   getFinalizationMessage() {
-    return `✅ **Atendimento Manual Encerrado**
+    return `✅ **Atendimento Finalizado**
 
-O atendimento manual foi encerrado e o assistente virtual da ${config.company.name} está de volta!
+Obrigado por escolher a ${config.company.name}!
 
-🤖 Como posso ajudá-lo hoje?
+O atendimento foi finalizado por atendente.
 
-Digite "empresa" se você representa uma empresa interessada em nossos serviços de RH
-Digite "candidato" se você está procurando oportunidades de emprego
+Se precisar de mais informações, sinta-se à vontade para enviar uma nova mensagem a qualquer momento!
+
+Obrigado pela confiança! 🙏
 
 ---
-*Sistema reiniciado automaticamente*`;
+*Atendimento encerrado*`;
   }
 
   // Métodos para controle manual
@@ -510,7 +511,8 @@ Digite "candidato" se você está procurando oportunidades de emprego
       // Finaliza a conversa no banco de dados
       await this.database.finalizeConversation(phoneNumber);
       
-      console.log(`✅ Conversa finalizada para ${phoneNumber}`);
+      // IMPORTANTE: Não reinicia automaticamente o bot para evitar ciclo infinito
+      console.log(`✅ Conversa finalizada para ${phoneNumber} - Bot não reiniciado automaticamente`);
       
       return {
         success: true,
