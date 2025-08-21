@@ -663,31 +663,34 @@ Obrigado por escolher a ${config.company.name}! 🙏
       }
 
       // Intercepta imediatamente anexos/links antes de qualquer lógica
-      const containsUrlEarly = (text) => {
-        if (!text || typeof text !== 'string') return false;
-        const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
-        return urlRegex.test(text);
-      };
+      // MAS apenas se não estiver sob controle manual
+      if (!this.isUnderManualControl(phoneNumber)) {
+        const containsUrlEarly = (text) => {
+          if (!text || typeof text !== 'string') return false;
+          const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
+          return urlRegex.test(text);
+        };
 
-      const mediaTypes = new Set(['image','video','ptt','audio','document','sticker','location','vcard','multi_vcard','contact_card','contact_card_multiple']);
-      const isMediaMessage = !!message.hasMedia || mediaTypes.has(messageType);
-      const isLinkMessage = containsUrlEarly(messageText);
+        const mediaTypes = new Set(['image','video','ptt','audio','document','sticker','location','vcard','multi_vcard','contact_card','contact_card_multiple']);
+        const isMediaMessage = !!message.hasMedia || mediaTypes.has(messageType);
+        const isLinkMessage = containsUrlEarly(messageText);
 
-      if (isMediaMessage || isLinkMessage) {
-        try {
-          const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
-          const whatReceived = isMediaMessage && isLinkMessage ? 'um anexo e um link' : (isMediaMessage ? 'um anexo (imagem/documento/áudio/vídeo)' : 'um link');
-          const guidance = `📄 Recebi ${whatReceived}.
+        if (isMediaMessage || isLinkMessage) {
+          try {
+            const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
+            const whatReceived = isMediaMessage && isLinkMessage ? 'um anexo e um link' : (isMediaMessage ? 'um anexo (imagem/documento/áudio/vídeo)' : 'um link');
+            const guidance = `📄 Recebi ${whatReceived}.
 
 Para prosseguir com o envio de documentos/arquivos, utilize nosso formulário de cadastro:
 ${registrationLink}
 
 No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, nossa equipe dará continuidade ao seu atendimento.`;
-          await this.sendMessage(phoneNumber, guidance);
-          await this.saveAgentMessage(phoneNumber, guidance);
-          return;
-        } catch (earlyErr) {
-          console.error('Erro ao enviar orientação inicial de anexos/links:', earlyErr);
+            await this.sendMessage(phoneNumber, guidance);
+            await this.saveAgentMessage(phoneNumber, guidance);
+            return;
+          } catch (earlyErr) {
+            console.error('Erro ao enviar orientação inicial de anexos/links:', earlyErr);
+          }
         }
       }
 
@@ -714,54 +717,61 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
       await this.saveUserMessage(phoneNumber, messageText);
 
       // Detecta anexos/documentos/links e orienta cadastro
-      const containsUrl = (text) => {
-        if (!text || typeof text !== 'string') return false;
-        const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
-        return urlRegex.test(text);
-      };
+      // MAS apenas se não estiver sob controle manual
+      if (!this.isUnderManualControl(phoneNumber)) {
+        const containsUrl = (text) => {
+          if (!text || typeof text !== 'string') return false;
+          const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
+          return urlRegex.test(text);
+        };
 
-      const isAttachment = !!message.hasMedia || (message.type && message.type !== 'chat');
-      const isDocument = message.type === 'document';
-      const isLinkOnly = containsUrl(messageText);
+        const isAttachment = !!message.hasMedia || (message.type && message.type !== 'chat');
+        const isDocument = message.type === 'document';
+        const isLinkOnly = containsUrl(messageText);
 
-      if (isAttachment || isDocument || isLinkOnly) {
-        try {
-          const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
-          const noticeParts = [];
-          if (isDocument) noticeParts.push('documento');
-          else if (isAttachment) noticeParts.push('anexo');
-          if (isLinkOnly) noticeParts.push('link');
-          const whatReceived = noticeParts.length ? noticeParts.join(' e ') : 'conteúdo';
+        if (isAttachment || isDocument || isLinkOnly) {
+          try {
+            const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
+            const noticeParts = [];
+            if (isDocument) noticeParts.push('documento');
+            else if (isAttachment) noticeParts.push('anexo');
+            if (isLinkOnly) noticeParts.push('link');
+            const whatReceived = noticeParts.length ? noticeParts.join(' e ') : 'conteúdo';
 
-          const guidance = `📄 Recebi ${whatReceived}.
+            const guidance = `📄 Recebi ${whatReceived}.
 
 Para prosseguir com o envio de documentos/arquivos, utilize nosso formulário de cadastro:
 ${registrationLink}
 
 No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, nossa equipe dará continuidade ao seu atendimento.`;
 
-          await this.sendMessage(phoneNumber, guidance);
-          await this.saveAgentMessage(phoneNumber, guidance);
-          return;
-        } catch (sendError) {
-          console.error('Erro ao orientar cadastro para anexos/links:', sendError);
+            await this.sendMessage(phoneNumber, guidance);
+            await this.saveAgentMessage(phoneNumber, guidance);
+            return;
+          } catch (sendError) {
+            console.error('Erro ao orientar cadastro para anexos/links:', sendError);
+          }
         }
       }
 
-      // Processa a mensagem e gera resposta
-      const response = await this.processMessage(phoneNumber, messageText);
+      // Processa a mensagem e gera resposta apenas se não estiver sob controle manual
+      if (!this.isUnderManualControl(phoneNumber)) {
+        const response = await this.processMessage(phoneNumber, messageText);
 
-      // Se a resposta for null, significa que a conversa foi encerrada
-      if (response === null) {
-        console.log(`✅ Conversa encerrada pelo usuário ${phoneNumber}`);
-        return;
+        // Se a resposta for null, significa que a conversa foi encerrada
+        if (response === null) {
+          console.log(`✅ Conversa encerrada pelo usuário ${phoneNumber}`);
+          return;
+        }
+
+        // Envia a resposta
+        await this.sendMessage(phoneNumber, response);
+
+        // Salva a resposta do agente
+        await this.saveAgentMessage(phoneNumber, response);
+      } else {
+        console.log(`👤 Mensagem de ${phoneNumber} em controle manual - não processando com IA`);
       }
-
-      // Envia a resposta
-      await this.sendMessage(phoneNumber, response);
-
-      // Salva a resposta do agente
-      await this.saveAgentMessage(phoneNumber, response);
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
@@ -917,6 +927,12 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
       
       await this.client.sendMessage(formattedNumber, message);
       console.log(`✅ Mensagem enviada para ${phoneNumber}`);
+      
+      // Se você enviou uma mensagem manualmente, automaticamente assume o controle
+      if (!this.isUnderManualControl(phoneNumber)) {
+        console.log(`🎛️ Assumindo controle automático para ${phoneNumber} após envio manual`);
+        await this.takeManualControl(phoneNumber, 'atendente');
+      }
       
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);

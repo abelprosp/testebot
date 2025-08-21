@@ -27,7 +27,9 @@
     "test-supabase": "node test-supabase.js",
     "check-env": "node check-env.js",
     "fix-server": "node fix-server-env.js",
-    "test-rate-limit": "node test-rate-limit.js"
+    "test-rate-limit": "node test-rate-limit.js",
+    "fix-env": "node fix-env-file.js",
+    "test-manual": "node test-manual-control.js"
   },
   "keywords": [
     "whatsapp",
