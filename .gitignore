@@ -103,3 +103,4 @@ test-*.js
 debug-*.js
 *.test.js
 *.spec.js
+core
