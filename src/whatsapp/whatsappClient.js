@@ -158,14 +158,20 @@ class WhatsAppClient {
         return;
       }
 
-      // Processa a mensagem e gera resposta
-      const response = await this.processMessage(phoneNumber, messageText);
+      // IMPORTANTE: Verifica se o controle manual foi habilitado por um atendente
+      // Se não foi habilitado manualmente, não processa automaticamente
+      if (!manualControl.enabled && !isFirstMessage) {
+        console.log(`🤖 Bot em modo automático para ${phoneNumber} - processando mensagem`);
+        
+        // Processa a mensagem e gera resposta
+        const response = await this.processMessage(phoneNumber, messageText);
 
-      // Envia a resposta
-      await this.sendMessage(phoneNumber, response);
+        // Envia a resposta
+        await this.sendMessage(phoneNumber, response);
 
-      // Salva a resposta do agente
-      await this.saveAgentMessage(phoneNumber, response);
+        // Salva a resposta do agente
+        await this.saveAgentMessage(phoneNumber, response);
+      }
 
     } catch (error) {
       console.error('Erro ao processar mensagem:', error);
@@ -395,6 +401,7 @@ Obrigado pela paciência! 🙏
     try {
       let conversation = await this.database.getConversation(phoneNumber);
       if (!conversation) {
+        console.log(`📝 Criando nova conversa para ${phoneNumber}`);
         const conversationId = await this.database.createConversation(phoneNumber, 'unknown');
         conversation = { id: conversationId };
       }
@@ -479,6 +486,21 @@ Obrigado pela confiança! 🙏
 *Atendimento encerrado*`;
   }
 
+  // Método para mensagem de liberação de controle
+  getReleaseMessage() {
+    return `🤖 **Controle Liberado**
+
+O atendimento manual foi liberado e o assistente virtual da ${config.company.name} está de volta!
+
+Como posso ajudá-lo hoje?
+
+Digite "empresa" se você representa uma empresa interessada em nossos serviços de RH
+Digite "candidato" se você está procurando oportunidades de emprego
+
+---
+*Bot em modo automático*`;
+  }
+
   // Métodos para controle manual
   async enableManualControl(phoneNumber, agentId) {
     try {
@@ -494,7 +516,7 @@ Obrigado pela confiança! 🙏
   async disableManualControl(phoneNumber) {
     try {
       await this.database.disableManualControl(phoneNumber);
-      console.log(`🤖 Controle manual desabilitado para ${phoneNumber}`);
+      console.log(`🤖 Controle manual desabilitado para ${phoneNumber} - Bot em modo automático`);
       return true;
     } catch (error) {
       console.error('Erro ao desabilitar controle manual:', error);
@@ -502,35 +524,41 @@ Obrigado pela confiança! 🙏
     }
   }
 
+  // Método para habilitar modo automático do bot
+  async enableAutoMode(phoneNumber) {
+    try {
+      await this.database.disableManualControl(phoneNumber);
+      console.log(`🤖 Modo automático habilitado para ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error('Erro ao habilitar modo automático:', error);
+      return false;
+    }
+  }
+
   // Método para liberar controle e finalizar conversa
   async releaseControlAndFinalize(phoneNumber) {
     try {
-      console.log(`🔚 Finalizando conversa para ${phoneNumber}`);
+      console.log(`🔚 Liberando controle para ${phoneNumber}`);
       
-      // Desabilita controle manual PRIMEIRO
+      // Desabilita controle manual
       await this.database.disableManualControl(phoneNumber);
       
-      // Finaliza a conversa no banco de dados
-      await this.database.finalizeConversation(phoneNumber);
+      // Envia mensagem de liberação
+      const releaseMessage = this.getReleaseMessage();
+      await this.sendMessage(phoneNumber, releaseMessage);
       
-      // Envia mensagem de finalização
-      const finalMessage = this.getFinalizationMessage();
-      await this.sendMessage(phoneNumber, finalMessage);
+      // Salva a mensagem de liberação
+      await this.saveAgentMessage(phoneNumber, releaseMessage);
       
-      // Salva a mensagem de finalização
-      await this.saveAgentMessage(phoneNumber, finalMessage);
-      
-      // IMPORTANTE: Marca que esta conversa foi finalizada para evitar reinício automático
-      await this.database.markConversationAsFinalized(phoneNumber);
-      
-      console.log(`✅ Conversa finalizada para ${phoneNumber} - Bot não reiniciará automaticamente`);
+      console.log(`✅ Controle liberado para ${phoneNumber} - Bot em modo automático`);
       
       return {
         success: true,
-        finalMessage: finalMessage
+        message: releaseMessage
       };
     } catch (error) {
-      console.error('Erro ao finalizar conversa:', error);
+      console.error('Erro ao liberar controle:', error);
       return {
         success: false,
         error: error.message
