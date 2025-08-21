@@ -384,39 +384,26 @@ Obrigado pela confiança! 🙏
       await this.sendMessage(phoneNumber, finishMessage);
       console.log(`📤 Mensagem de finalização de atendimento enviada para ${phoneNumber}`);
 
-      // Envia mensagem de encerramento do atendimento manual
-      const closingMessage = `✅ *Atendimento Manual Encerrado*
+      // REMOVIDO: Não reinicia automaticamente o fluxo
+      // O bot deve aguardar uma nova mensagem do usuário para retomar
 
-O atendimento manual foi encerrado e o assistente virtual da Evolux Soluções de RH está de volta!
+      console.log(`🤖 Controle manual liberado para ${phoneNumber} - aguardando nova mensagem do usuário`);
+      
+      return {
+        success: true,
+        message: `Controle manual liberado para ${phoneNumber}`,
+        agentId: agentId,
+        releasedAt: new Date()
+      };
 
-🤖 Como posso ajudá-lo hoje?
-
-*Digite "empresa" se você representa uma empresa interessada em nossos serviços de RH*
-*Digite "candidato" se você está procurando oportunidades de emprego*
-
----
-*Sistema reiniciado automaticamente*`;
-
-      await this.sendMessage(phoneNumber, closingMessage);
-      console.log(`📤 Mensagem de encerramento enviada para ${phoneNumber}`);
-
-      // Limpa o histórico da conversa para reiniciar o fluxo
-      await this.database.clearConversationData(phoneNumber);
-      console.log(`🔄 Histórico da conversa limpo para ${phoneNumber}`);
-
-      // Cria nova conversa
-      await this.database.createConversation(phoneNumber, 'candidate');
-      console.log(`🆕 Nova conversa criada para ${phoneNumber}`);
-
-      // Envia mensagem inicial
-      const initialMessage = await this.groqClient.getInitialMessage();
-      await this.sendMessage(phoneNumber, initialMessage);
-      console.log(`👋 Mensagem inicial enviada para ${phoneNumber}`);
-
-      // Reativa timeout
-      this.manageConversationTimeout(phoneNumber);
-
-      console.log(`🤖 Controle manual liberado e fluxo reiniciado para ${phoneNumber}`);
+    } catch (error) {
+      console.error('Erro ao liberar controle manual:', error);
+      return {
+        success: false,
+        error: 'Erro ao liberar controle manual'
+      };
+    }
+  }
       
       return {
         success: true,
@@ -566,6 +553,9 @@ Obrigado pela confiança! 🙏
       await this.database.finalizeConversation(phoneNumber);
       
       console.log(`✅ Conversa finalizada definitivamente para ${phoneNumber}`);
+      
+      // REMOVIDO: Não reinicia automaticamente o fluxo
+      // O bot deve aguardar uma nova mensagem do usuário para retomar
       
       return {
         success: true,
@@ -928,11 +918,8 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
       await this.client.sendMessage(formattedNumber, message);
       console.log(`✅ Mensagem enviada para ${phoneNumber}`);
       
-      // Se você enviou uma mensagem manualmente, automaticamente assume o controle
-      if (!this.isUnderManualControl(phoneNumber)) {
-        console.log(`🎛️ Assumindo controle automático para ${phoneNumber} após envio manual`);
-        await this.takeManualControl(phoneNumber, 'atendente');
-      }
+      // REMOVIDO: Não assume controle automaticamente após enviar mensagem
+      // O controle deve ser assumido apenas pelo dashboard
       
     } catch (error) {
       console.error('Erro ao enviar mensagem:', error);
