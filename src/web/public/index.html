@@ -625,7 +625,7 @@
         </div>
     </div>
 
-    <button class="refresh-btn" onclick="loadStats()">🔄</button>
+    <button class="refresh-btn" onclick="loadStats(true)">🔄</button>
 
     <!-- Modal para QR Code -->
     <div id="qrModal" class="modal" style="display: none;">
@@ -703,13 +703,36 @@
         }
 
         // Carregar estatísticas
-        async function loadStats() {
+        async function loadStats(forceRefresh = false) {
             try {
-                console.log('🔄 Carregando estatísticas...');
+                const now = Date.now();
+                
+                // Verifica se pode usar cache
+                if (!forceRefresh && statsCache && (now - lastStatsUpdate) < CACHE_DURATION) {
+                    console.log('📊 Usando cache de estatísticas...');
+                    updateStats(statsCache);
+                    updateConversations(statsCache.activeConversations);
+                    updatePhoneNumberSelect(statsCache.activeConversations);
+                    return;
+                }
+                
+                console.log('🔄 Carregando estatísticas da API...');
                 const response = await authenticatedFetch('/api/stats');
                 console.log('📊 Resposta da API:', response.status);
                 
                 if (!response.ok) {
+                    if (response.status === 429) {
+                        console.log('⚠️ Rate limit atingido, usando cache se disponível...');
+                        if (statsCache) {
+                            updateStats(statsCache);
+                            updateConversations(statsCache.activeConversations);
+                            updatePhoneNumberSelect(statsCache.activeConversations);
+                            showAlert('Rate limit atingido. Dados podem estar desatualizados.', 'warning');
+                        } else {
+                            throw new Error('Rate limit atingido e nenhum cache disponível');
+                        }
+                        return;
+                    }
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 
@@ -717,7 +740,11 @@
                 console.log('📊 Dados recebidos:', data);
                 
                 if (data.success) {
+                    // Atualiza cache
+                    statsCache = data.data;
+                    lastStatsUpdate = now;
                     currentStats = data.data;
+                    
                     console.log('✅ Atualizando estatísticas...');
                     updateStats(data.data);
                     updateConversations(data.data.activeConversations);
@@ -727,12 +754,22 @@
                     showAlert('Erro ao carregar estatísticas: ' + (data.error || 'Erro desconhecido'), 'error');
                 }
 
-                // Carregar notificações
+                // Carregar notificações (com cache também)
                 console.log('🔔 Carregando notificações...');
                 await loadNotifications();
             } catch (error) {
                 console.error('❌ Erro ao carregar estatísticas:', error);
-                showAlert('Erro ao carregar estatísticas: ' + error.message, 'error');
+                
+                // Se há cache disponível, usa ele em caso de erro
+                if (statsCache) {
+                    console.log('📊 Usando cache devido a erro...');
+                    updateStats(statsCache);
+                    updateConversations(statsCache.activeConversations);
+                    updatePhoneNumberSelect(statsCache.activeConversations);
+                    showAlert('Erro na API. Dados podem estar desatualizados.', 'warning');
+                } else {
+                    showAlert('Erro ao carregar estatísticas: ' + error.message, 'error');
+                }
             }
         }
 
@@ -1142,11 +1179,16 @@
             }, 5000);
         }
 
+        // Cache para estatísticas
+        let statsCache = null;
+        let lastStatsUpdate = 0;
+        const CACHE_DURATION = 30000; // 30 segundos
+
         // Carregar estatísticas automaticamente
         loadStats();
         
-        // Atualizar a cada 10 segundos
-        setInterval(loadStats, 10000);
+        // Atualizar a cada 30 segundos (reduzido de 10 para 30)
+        setInterval(loadStats, 30000);
 
         // Funções para QR Code
         async function generateQRCode() {

@@ -21,7 +21,13 @@
     "test-finalization": "node test-finalization.js",
     "test-error-fix": "node test-error-fix.js",
     "test-whatsapp": "node test-whatsapp-client.js",
-    "diagnose": "node diagnose.js"
+    "diagnose": "node diagnose.js",
+    "migrate-db": "node migrate-database.js",
+    "setup-supabase": "node setup-supabase.js",
+    "test-supabase": "node test-supabase.js",
+    "check-env": "node check-env.js",
+    "fix-server": "node fix-server-env.js",
+    "test-rate-limit": "node test-rate-limit.js"
   },
   "keywords": [
     "whatsapp",

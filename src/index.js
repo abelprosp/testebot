@@ -1,3 +1,6 @@
+// Carrega variáveis de ambiente primeiro
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -39,10 +42,17 @@ app.use(helmet({
 app.use(cors());
 app.use(express.json());
 
-// Rate limiting
+// Rate limiting mais permissivo para o dashboard
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100 // limite por IP
+  max: 500, // Aumentado de 100 para 500
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Pula rate limiting para health checks
+    return req.path === '/health';
+  }
 });
 app.use(limiter);
 
