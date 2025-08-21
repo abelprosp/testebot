@@ -212,10 +212,11 @@ class ManualControlCLI {
           
           const releaseResult = await this.releaseControl(phoneToRelease);
           if (releaseResult?.success) {
-            console.log('✅ Conversa finalizada com sucesso!');
+            console.log('✅ Conversa finalizada definitivamente!');
             console.log(`📱 Telefone: ${releaseResult.data.phoneNumber}`);
             console.log(`⏰ Finalizada em: ${releaseResult.data.finalizedAt}`);
-            console.log(`📝 Mensagem enviada: ${releaseResult.data.finalMessage ? 'Sim' : 'Não'}`);
+            console.log(`🔚 Status: Conversa encerrada - usuário precisará enviar nova mensagem para iniciar nova conversa`);
+            console.log(`📝 Mensagem de despedida enviada: ${releaseResult.data.finalMessage ? 'Sim' : 'Não'}`);
           }
           break;
 

@@ -537,18 +537,22 @@ Obrigado pela paciência! 🙏
       // Remove controle manual
       this.manualControl.delete(phoneNumber);
 
-      // Envia mensagem de finalização
-      const finalMessage = `✅ **Atendimento Manual Encerrado**
+      // Remove da lista de conversas ativas
+      this.activeConversations.delete(phoneNumber);
 
-O atendimento manual foi encerrado e o assistente virtual da ${config.company.name} está de volta!
+      // Envia mensagem de finalização definitiva
+      const finalMessage = `✅ **Atendimento Finalizado**
 
-🤖 Como posso ajudá-lo hoje?
+Obrigado por escolher a ${config.company.name}!
 
-Digite "empresa" se você representa uma empresa interessada em nossos serviços de RH
-Digite "candidato" se você está procurando oportunidades de emprego
+O atendimento foi finalizado por ${agentId}.
+
+📞 Se precisar de mais informações, sinta-se à vontade para enviar uma nova mensagem a qualquer momento!
+
+Obrigado pela confiança! 🙏
 
 ---
-*Sistema reiniciado automaticamente*`;
+*Atendimento finalizado em ${new Date().toLocaleString('pt-BR')}*`;
 
       await this.sendMessage(phoneNumber, finalMessage);
       
@@ -561,11 +565,12 @@ Digite "candidato" se você está procurando oportunidades de emprego
       // Finaliza a conversa no banco de dados
       await this.database.finalizeConversation(phoneNumber);
       
-      console.log(`✅ Conversa finalizada para ${phoneNumber}`);
+      console.log(`✅ Conversa finalizada definitivamente para ${phoneNumber}`);
       
       return {
         success: true,
-        finalMessage: finalMessage
+        finalMessage: finalMessage,
+        finalizedAt: new Date().toISOString()
       };
     } catch (error) {
       console.error('Erro ao finalizar conversa:', error);
@@ -649,6 +654,13 @@ Obrigado por escolher a ${config.company.name}! 🙏
       const messageType = message.type;
 
       console.log(`📱 Nova mensagem de ${phoneNumber}: ${messageText}`);
+
+      // Verifica se a conversa está finalizada
+      const conversation = await this.database.getConversation(phoneNumber);
+      if (conversation && conversation.status === 'finalized') {
+        console.log(`🔚 Mensagem de ${phoneNumber} ignorada - conversa finalizada`);
+        return;
+      }
 
       // Intercepta imediatamente anexos/links antes de qualquer lógica
       const containsUrlEarly = (text) => {

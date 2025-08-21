@@ -1073,7 +1073,7 @@
             }
             
             // Confirmação antes de finalizar
-            if (!confirm('Tem certeza que deseja finalizar esta conversa? Isso irá:\n\n• Enviar uma mensagem de finalização\n• Finalizar a conversa permanentemente\n• Remover da lista de conversas ativas\n\nEsta ação não pode ser desfeita.')) {
+            if (!confirm('Tem certeza que deseja finalizar esta conversa? Isso irá:\n\n• Enviar uma mensagem de despedida\n• Finalizar a conversa definitivamente\n• Remover da lista de conversas ativas\n• O usuário precisará enviar uma nova mensagem para iniciar nova conversa\n\nEsta ação não pode ser desfeita.')) {
                 return;
             }
             
@@ -1087,7 +1087,7 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('✅ Conversa finalizada com sucesso! O usuário recebeu a mensagem de finalização.', 'success');
+                    showAlert('✅ Conversa finalizada definitivamente! O usuário recebeu a mensagem de despedida.', 'success');
                     
                     // Limpa os campos
                     document.getElementById('phoneNumber').value = '';
