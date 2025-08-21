@@ -27,6 +27,10 @@ class Database {
           phone_number TEXT NOT NULL,
           user_type TEXT CHECK(user_type IN ('candidate', 'company', 'other', 'unknown')) DEFAULT 'unknown',
           status TEXT DEFAULT 'active',
+          is_first_message BOOLEAN DEFAULT 1,
+          manual_control_enabled BOOLEAN DEFAULT 0,
+          agent_id TEXT,
+          manual_control_taken_at DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -202,6 +206,90 @@ class Database {
         function(err) {
           if (err) reject(err);
           else resolve(this.changes);
+        }
+      );
+    });
+  }
+
+  // Métodos para controle manual
+  async enableManualControl(phoneNumber, agentId) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'UPDATE conversations SET manual_control_enabled = 1, agent_id = ?, manual_control_taken_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
+        [agentId, phoneNumber],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes);
+        }
+      );
+    });
+  }
+
+  async disableManualControl(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'UPDATE conversations SET manual_control_enabled = 0, agent_id = NULL, manual_control_taken_at = NULL, updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
+        [phoneNumber],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes);
+        }
+      );
+    });
+  }
+
+  // Método para finalizar conversa
+  async finalizeConversation(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'UPDATE conversations SET status = "finalized", updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
+        [phoneNumber],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes);
+        }
+      );
+    });
+  }
+
+  async markFirstMessageHandled(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'UPDATE conversations SET is_first_message = 0, updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
+        [phoneNumber],
+        function(err) {
+          if (err) reject(err);
+          else resolve(this.changes);
+        }
+      );
+    });
+  }
+
+  async isManualControlEnabled(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        'SELECT manual_control_enabled, agent_id, manual_control_taken_at FROM conversations WHERE phone_number = ? ORDER BY created_at DESC LIMIT 1',
+        [phoneNumber],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row ? {
+            enabled: row.manual_control_enabled === 1,
+            agentId: row.agent_id,
+            takenAt: row.manual_control_taken_at
+          } : { enabled: false, agentId: null, takenAt: null });
+        }
+      );
+    });
+  }
+
+  async isFirstMessage(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        'SELECT is_first_message FROM conversations WHERE phone_number = ? ORDER BY created_at DESC LIMIT 1',
+        [phoneNumber],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row ? row.is_first_message === 1 : true);
         }
       );
     });

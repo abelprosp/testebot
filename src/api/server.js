@@ -214,22 +214,22 @@ class APIServer {
           });
         }
 
-        const result = await this.whatsappClient.takeManualControl(phoneNumber, agentId);
+        const result = await this.whatsappClient.enableManualControl(phoneNumber, agentId);
         
-        if (result.success) {
+        if (result) {
           res.json({
             success: true,
-            message: result.message,
+            message: `Controle manual assumido para ${phoneNumber}`,
             data: {
               phoneNumber,
-              agentId: result.agentId,
-              takenAt: result.takenAt
+              agentId,
+              takenAt: new Date().toISOString()
             }
           });
         } else {
           res.status(500).json({
             success: false,
-            error: result.error
+            error: 'Erro ao assumir controle manual'
           });
         }
       } catch (error) {
@@ -241,7 +241,7 @@ class APIServer {
       }
     });
 
-    // Rota para liberar controle manual
+    // Rota para liberar controle manual e finalizar conversa
     this.app.post('/whatsapp/release-control', async (req, res) => {
       try {
         const { phoneNumber } = req.body;
@@ -260,25 +260,27 @@ class APIServer {
           });
         }
 
-        const result = await this.whatsappClient.releaseManualControl(phoneNumber);
+        // Libera o controle manual e finaliza a conversa
+        const result = await this.whatsappClient.releaseControlAndFinalize(phoneNumber);
         
         if (result.success) {
           res.json({
             success: true,
-            message: result.message,
+            message: `Conversa finalizada para ${phoneNumber}`,
             data: {
               phoneNumber,
-              releasedAt: result.releasedAt
+              finalizedAt: new Date().toISOString(),
+              finalMessage: result.finalMessage
             }
           });
         } else {
           res.status(500).json({
             success: false,
-            error: result.error
+            error: result.error || 'Erro ao finalizar conversa'
           });
         }
       } catch (error) {
-        console.error('Erro ao liberar controle:', error);
+        console.error('Erro ao finalizar conversa:', error);
         res.status(500).json({
           success: false,
           error: 'Erro interno do servidor'
@@ -287,21 +289,112 @@ class APIServer {
     });
 
     // Rota para verificar status de controle
-    this.app.get('/whatsapp/control-status/:phoneNumber', (req, res) => {
+    this.app.get('/whatsapp/control-status/:phoneNumber', async (req, res) => {
       try {
         const { phoneNumber } = req.params;
-        const status = this.whatsappClient ? this.whatsappClient.getManualControlInfo(phoneNumber) : null;
+        
+        if (!this.whatsappClient) {
+          return res.json({
+            success: true,
+            data: {
+              phoneNumber,
+              isManualControl: false,
+              manualInfo: null
+            }
+          });
+        }
+
+        const status = await this.whatsappClient.getManualControlStatus(phoneNumber);
         
         res.json({
           success: true,
           data: {
-            isManualControl: !!status,
-            manualInfo: status
+            phoneNumber,
+            isManualControl: status.enabled,
+            manualInfo: status.enabled ? {
+              agentId: status.agentId,
+              takenAt: status.takenAt
+            } : null
           }
         });
       } catch (error) {
         console.error('Erro ao verificar status de controle:', error);
         res.status(500).json({ success: false, error: 'Erro ao verificar status' });
+      }
+    });
+
+    // Rota para marcar primeira mensagem como tratada
+    this.app.post('/whatsapp/first-message-handled', async (req, res) => {
+      try {
+        const { phoneNumber } = req.body;
+        
+        if (!phoneNumber) {
+          return res.status(400).json({
+            success: false,
+            error: 'Número de telefone é obrigatório'
+          });
+        }
+
+        if (!this.whatsappClient || !this.whatsappClient.isConnected()) {
+          return res.status(503).json({
+            success: false,
+            error: 'Cliente WhatsApp não está conectado'
+          });
+        }
+
+        const result = await this.whatsappClient.markFirstMessageHandled(phoneNumber);
+        
+        if (result) {
+          res.json({
+            success: true,
+            message: `Primeira mensagem marcada como tratada para ${phoneNumber}`,
+            data: {
+              phoneNumber,
+              handledAt: new Date().toISOString()
+            }
+          });
+        } else {
+          res.status(500).json({
+            success: false,
+            error: 'Erro ao marcar primeira mensagem como tratada'
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao marcar primeira mensagem:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Erro interno do servidor'
+        });
+      }
+    });
+
+    // Rota para verificar se é primeira mensagem
+    this.app.get('/whatsapp/first-message-status/:phoneNumber', async (req, res) => {
+      try {
+        const { phoneNumber } = req.params;
+        
+        if (!this.whatsappClient) {
+          return res.json({
+            success: true,
+            data: {
+              phoneNumber,
+              isFirstMessage: false
+            }
+          });
+        }
+
+        const isFirstMessage = await this.database.isFirstMessage(phoneNumber);
+        
+        res.json({
+          success: true,
+          data: {
+            phoneNumber,
+            isFirstMessage
+          }
+        });
+      } catch (error) {
+        console.error('Erro ao verificar primeira mensagem:', error);
+        res.status(500).json({ success: false, error: 'Erro ao verificar primeira mensagem' });
       }
     });
 

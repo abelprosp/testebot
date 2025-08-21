@@ -598,7 +598,7 @@
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
                         <button class="btn btn-primary" onclick="takeControl()">👤 Assumir Controle</button>
                         <button class="btn btn-success" onclick="sendMessage()">📱 Enviar Mensagem</button>
-                        <button class="btn btn-danger" onclick="releaseControl()">🤖 Liberar Controle</button>
+                        <button class="btn btn-danger" onclick="releaseControl()">🔚 Finalizar Conversa</button>
                         <button class="btn btn-warning" onclick="checkStatus()">🔍 Verificar Status</button>
                     </div>
                 </div>
@@ -1063,12 +1063,17 @@
             }
         }
 
-        // Liberar controle
+        // Liberar controle e finalizar conversa
         async function releaseControl() {
             const phoneNumber = document.getElementById('phoneNumber').value;
             
             if (!phoneNumber) {
                 showAlert('Digite o número do telefone', 'error');
+                return;
+            }
+            
+            // Confirmação antes de finalizar
+            if (!confirm('Tem certeza que deseja finalizar esta conversa? Isso irá:\n\n• Enviar uma mensagem de finalização\n• Finalizar a conversa permanentemente\n• Remover da lista de conversas ativas\n\nEsta ação não pode ser desfeita.')) {
                 return;
             }
             
@@ -1082,13 +1087,19 @@
                 const data = await response.json();
                 
                 if (data.success) {
-                    showAlert('Controle liberado com sucesso!', 'success');
+                    showAlert('✅ Conversa finalizada com sucesso! O usuário recebeu a mensagem de finalização.', 'success');
+                    
+                    // Limpa os campos
+                    document.getElementById('phoneNumber').value = '';
+                    document.getElementById('message').value = '';
+                    
+                    // Recarrega as estatísticas
                     loadStats();
                 } else {
-                    showAlert(data.error || 'Erro ao liberar controle', 'error');
+                    showAlert(data.error || 'Erro ao finalizar conversa', 'error');
                 }
             } catch (error) {
-                showAlert('Erro ao liberar controle', 'error');
+                showAlert('Erro ao finalizar conversa', 'error');
             }
         }
 

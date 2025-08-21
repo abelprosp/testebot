@@ -6,12 +6,10 @@ const config = require('../config/config');
 
 class WhatsAppClient {
   constructor() {
-    this.client = new Client({
-      authStrategy: new LocalAuth(),
-      puppeteer: {
-        headless: config.whatsapp.headless,
-        executablePath: config.whatsapp.executablePath || undefined,
-        args: [
+    // Configuração do Puppeteer
+    const puppeteerConfig = {
+      headless: config.whatsapp.headless,
+      args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
@@ -61,7 +59,19 @@ class WhatsAppClient {
         ],
         timeout: 60000,
         protocolTimeout: 60000
-      }
+      };
+
+    // Adiciona caminho do executável apenas se estiver configurado
+    if (config.whatsapp.executablePath) {
+      puppeteerConfig.executablePath = config.whatsapp.executablePath;
+      console.log(`🔧 Usando Chrome em: ${config.whatsapp.executablePath}`);
+    } else {
+      console.log('🔧 Usando Chrome embutido do Puppeteer');
+    }
+
+    this.client = new Client({
+      authStrategy: new LocalAuth(),
+      puppeteer: puppeteerConfig
     });
 
     this.database = new Database();
@@ -124,6 +134,21 @@ class WhatsAppClient {
       // Salva a mensagem do usuário
       await this.saveUserMessage(phoneNumber, messageText);
 
+      // Verifica se é controle manual
+      const manualControl = await this.database.isManualControlEnabled(phoneNumber);
+      if (manualControl.enabled) {
+        console.log(`👤 Mensagem de ${phoneNumber} em controle manual - ignorando IA`);
+        return; // Não processa com IA, apenas salva a mensagem
+      }
+
+      // Verifica se é primeira mensagem
+      const isFirstMessage = await this.database.isFirstMessage(phoneNumber);
+      if (isFirstMessage) {
+        console.log(`🆕 Primeira mensagem de ${phoneNumber} - aguardando liberação manual`);
+        await this.sendMessage(phoneNumber, this.getFirstMessageResponse());
+        return;
+      }
+
       // Processa a mensagem e gera resposta
       const response = await this.processMessage(phoneNumber, messageText);
 
@@ -159,11 +184,11 @@ class WhatsAppClient {
         conversation.user_type = userType;
       }
 
-      // Processa baseado no tipo de usuário
+      // Processa baseado no tipo de usuário com fluxo específico
       if (conversation.user_type === 'company') {
-        return await this.groqClient.handleCompanyFlow(messageText);
+        return await this.handleCompanyFlow(messageText, phoneNumber);
       } else if (conversation.user_type === 'candidate') {
-        return await this.groqClient.handleCandidateFlow(messageText, history);
+        return await this.handleCandidateFlow(messageText, history, phoneNumber);
       } else {
         // Se não conseguiu classificar, pergunta novamente
         return await this.groqClient.getInitialMessage();
@@ -173,6 +198,188 @@ class WhatsAppClient {
       console.error('Erro no processamento da mensagem:', error);
       return 'Desculpe, estou enfrentando dificuldades técnicas. Tente novamente em alguns instantes.';
     }
+  }
+
+  // Fluxo específico para empresas
+  async handleCompanyFlow(messageText, phoneNumber) {
+    const messageLower = messageText.toLowerCase();
+    
+    // Verifica se está pedindo por atendente humano
+    if (messageLower.includes('atendente') || messageLower.includes('humano') || 
+        messageLower.includes('pessoa') || messageLower.includes('falar com alguém') ||
+        messageLower.includes('conversar com alguém') || messageLower.includes('atendimento direto')) {
+      return this.getCompanyAttendantResponse();
+    }
+
+    // Verifica se quer contratar a Evolux
+    if (messageLower.includes('contratar') || messageLower.includes('serviços') ||
+        messageLower.includes('evolux') || messageLower.includes('rh') ||
+        messageLower.includes('recrutamento') || messageLower.includes('seleção')) {
+      return this.getCompanyWaitResponse();
+    }
+
+    // Resposta padrão para empresas
+    return await this.groqClient.handleCompanyFlow(messageText);
+  }
+
+  // Fluxo específico para candidatos
+  async handleCandidateFlow(messageText, history, phoneNumber) {
+    const messageLower = messageText.toLowerCase();
+    
+    // Verifica se está tentando enviar currículo
+    if (messageLower.includes('currículo') || messageLower.includes('curriculo') ||
+        messageLower.includes('cv') || messageLower.includes('enviar') ||
+        messageLower.includes('mandar') || messageLower.includes('anexar') ||
+        messageLower.includes('arquivo') || messageLower.includes('pdf') ||
+        messageLower.includes('documento')) {
+      return this.getCandidateResumeResponse();
+    }
+
+    // Verifica se quer ver vagas
+    if (messageLower.includes('vagas') || messageLower.includes('emprego') ||
+        messageLower.includes('oportunidades') || messageLower.includes('trabalho') ||
+        messageLower.includes('candidatar') || messageLower.includes('aplicar')) {
+      return await this.getCandidateJobsResponse(messageText, history);
+    }
+
+    // Verifica se está pedindo por atendente humano
+    if (messageLower.includes('atendente') || messageLower.includes('humano') ||
+        messageLower.includes('pessoa') || messageLower.includes('falar com alguém')) {
+      return this.getCandidateAttendantResponse();
+    }
+
+    // Resposta padrão para candidatos
+    return await this.groqClient.handleCandidateFlow(messageText, history);
+  }
+
+  // Respostas específicas para empresas
+  getCompanyAttendantResponse() {
+    return `👤 **Solicitação de Atendente Humano**
+
+Entendemos que você gostaria de falar com um atendente humano.
+
+📞 Um de nossos especialistas em recrutamento e seleção irá atendê-lo em breve.
+
+⏰ Por favor, aguarde um momento enquanto transferimos você para um atendente humano.
+
+Enquanto isso, você pode conhecer mais sobre nossos serviços em: ${config.company.website}
+
+Obrigado pela paciência! 🙏
+
+---
+*Um atendente humano entrará em contato em breve.*`;
+  }
+
+  getCompanyWaitResponse() {
+    return `🏢 **Interesse em Serviços da Evolux**
+
+Obrigado pelo seu interesse nos serviços da ${config.company.name}!
+
+📞 Um de nossos especialistas em recrutamento e seleção irá atendê-lo em breve para discutir suas necessidades.
+
+⏰ Por favor, aguarde um momento enquanto transferimos você para um atendente humano.
+
+Enquanto isso, você pode conhecer mais sobre nossos serviços em: ${config.company.website}
+
+Obrigado pela paciência! 🙏
+
+---
+*Um especialista entrará em contato em breve para discutir suas necessidades de RH.*`;
+  }
+
+  // Respostas específicas para candidatos
+  getCandidateResumeResponse() {
+    return `📄 **Envio de Currículo**
+
+Para enviar seu currículo e se candidatar às vagas, acesse nosso formulário oficial:
+
+🔗 **Link para Candidatura:** ${config.company.registrationLink}
+
+📝 **No formulário você poderá:**
+• Enviar seu currículo
+• Preencher informações detalhadas
+• Selecionar vagas de interesse
+• Acompanhar o status da candidatura
+
+💡 **Dica:** Mantenha seu currículo atualizado e detalhe suas experiências e habilidades.
+
+Obrigado pelo interesse em fazer parte da nossa equipe! 🚀
+
+---
+*Use o link acima para enviar seu currículo de forma segura e organizada.*`;
+  }
+
+  async getCandidateJobsResponse(messageText, history) {
+    try {
+      // Busca vagas disponíveis
+      const jobs = await this.groqClient.jobService.getAllJobs();
+      
+      if (jobs.length === 0) {
+        return `📋 **Vagas Disponíveis**
+
+No momento não temos vagas abertas, mas você pode se cadastrar em nosso banco de talentos:
+
+🔗 **Cadastro:** ${config.company.registrationLink}
+
+Assim que surgirem oportunidades compatíveis com seu perfil, entraremos em contato! 😊
+
+---
+*Cadastre-se para receber notificações de novas vagas.*`;
+      }
+
+      // Filtra vagas relevantes baseado no histórico
+      const relevantJobs = jobs.slice(0, 5); // Mostra até 5 vagas
+      
+      let response = `🎯 **Vagas Encontradas para Você:**
+
+`;
+      
+      relevantJobs.forEach((job, index) => {
+        response += `${index + 1}. 🏢 **${job.title}**
+📊 Senioridade: ${job.level || 'Não especificado'}
+📍 Localização: ${job.location || 'Não especificado'}
+📝 ${job.description ? job.description.substring(0, 100) + '...' : 'Descrição não disponível'}
+
+`;
+      });
+
+      response += `📋 **Para se candidatar, acesse:** ${config.company.registrationLink}
+
+💡 **Dica:** No formulário você poderá selecionar as vagas de interesse e enviar seu currículo.
+
+Obrigado pelo interesse! 🚀
+
+---
+*Use o link acima para se candidatar às vagas de interesse.*`;
+
+      return response;
+    } catch (error) {
+      console.error('Erro ao buscar vagas:', error);
+      return `📋 **Vagas Disponíveis**
+
+Para ver as vagas disponíveis e se candidatar, acesse:
+
+🔗 **Link para Candidatura:** ${config.company.registrationLink}
+
+Obrigado pelo interesse! 🚀`;
+    }
+  }
+
+  getCandidateAttendantResponse() {
+    return `👤 **Solicitação de Atendente Humano**
+
+Entendemos que você gostaria de falar com um atendente humano.
+
+📞 Um de nossos especialistas em recrutamento e seleção irá atendê-lo em breve.
+
+⏰ Por favor, aguarde um momento enquanto transferimos você para um atendente humano.
+
+Enquanto isso, você pode se cadastrar em: ${config.company.registrationLink}
+
+Obrigado pela paciência! 🙏
+
+---
+*Um atendente humano entrará em contato em breve.*`;
   }
 
   async saveUserMessage(phoneNumber, message) {
@@ -224,6 +431,117 @@ class WhatsAppClient {
       console.log('Funcionalidade de envio em massa não implementada');
     } catch (error) {
       console.error('Erro no envio em massa:', error);
+    }
+  }
+
+  // Método para resposta da primeira mensagem
+  getFirstMessageResponse() {
+    return `🆕 **Nova Mensagem Recebida**
+
+Olá! Recebemos sua mensagem e um de nossos especialistas irá atendê-lo em breve.
+
+⏰ Por favor, aguarde um momento enquanto um atendente humano assume o atendimento.
+
+📞 Nossos especialistas estão prontos para ajudá-lo com:
+• Busca de vagas de emprego
+• Serviços de RH para empresas
+• Orientação profissional
+• Informações sobre candidaturas
+
+Obrigado pela paciência! 🙏
+
+---
+*Um atendente humano entrará em contato em breve.*`;
+  }
+
+  // Método para mensagem de finalização
+  getFinalizationMessage() {
+    return `✅ **Atendimento Manual Encerrado**
+
+O atendimento manual foi encerrado e o assistente virtual da ${config.company.name} está de volta!
+
+🤖 Como posso ajudá-lo hoje?
+
+Digite "empresa" se você representa uma empresa interessada em nossos serviços de RH
+Digite "candidato" se você está procurando oportunidades de emprego
+
+---
+*Sistema reiniciado automaticamente*`;
+  }
+
+  // Métodos para controle manual
+  async enableManualControl(phoneNumber, agentId) {
+    try {
+      await this.database.enableManualControl(phoneNumber, agentId);
+      console.log(`👤 Controle manual habilitado para ${phoneNumber} por ${agentId}`);
+      return true;
+    } catch (error) {
+      console.error('Erro ao habilitar controle manual:', error);
+      return false;
+    }
+  }
+
+  async disableManualControl(phoneNumber) {
+    try {
+      await this.database.disableManualControl(phoneNumber);
+      console.log(`🤖 Controle manual desabilitado para ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error('Erro ao desabilitar controle manual:', error);
+      return false;
+    }
+  }
+
+  // Método para liberar controle e finalizar conversa
+  async releaseControlAndFinalize(phoneNumber) {
+    try {
+      console.log(`🔚 Finalizando conversa para ${phoneNumber}`);
+      
+      // Envia mensagem de finalização
+      const finalMessage = this.getFinalizationMessage();
+      await this.sendMessage(phoneNumber, finalMessage);
+      
+      // Salva a mensagem de finalização
+      await this.saveAgentMessage(phoneNumber, finalMessage);
+      
+      // Desabilita controle manual
+      await this.database.disableManualControl(phoneNumber);
+      
+      // Finaliza a conversa no banco de dados
+      await this.database.finalizeConversation(phoneNumber);
+      
+      console.log(`✅ Conversa finalizada para ${phoneNumber}`);
+      
+      return {
+        success: true,
+        finalMessage: finalMessage
+      };
+    } catch (error) {
+      console.error('Erro ao finalizar conversa:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
+  async markFirstMessageHandled(phoneNumber) {
+    try {
+      await this.database.markFirstMessageHandled(phoneNumber);
+      console.log(`✅ Primeira mensagem marcada como tratada para ${phoneNumber}`);
+      return true;
+    } catch (error) {
+      console.error('Erro ao marcar primeira mensagem:', error);
+      return false;
+    }
+  }
+
+  async getManualControlStatus(phoneNumber) {
+    try {
+      return await this.database.isManualControlEnabled(phoneNumber);
+    } catch (error) {
+      console.error('Erro ao obter status de controle manual:', error);
+      return { enabled: false, agentId: null, takenAt: null };
     }
   }
 

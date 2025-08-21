@@ -40,7 +40,8 @@ module.exports = {
   whatsapp: {
     number: process.env.WHATSAPP_NUMBER || '5511999999999',
     headless: process.env.WHATSAPP_HEADLESS ? process.env.WHATSAPP_HEADLESS !== 'false' : true,
-    executablePath: process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || getChromePath()
+    // Usar Chrome embutido do Puppeteer se não houver caminho específico configurado
+    executablePath: process.env.CHROME_PATH || process.env.PUPPETEER_EXECUTABLE_PATH || null
   }
 };
 
