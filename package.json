@@ -20,6 +20,7 @@
     "test-groq": "node test-groq.js",
     "test-finalization": "node test-finalization.js",
     "test-error-fix": "node test-error-fix.js",
+    "test-whatsapp": "node test-whatsapp-client.js",
     "diagnose": "node diagnose.js"
   },
   "keywords": [

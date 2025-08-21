@@ -285,6 +285,11 @@ class WhatsAppClientSimple {
   }
 
   // Sistema de controle manual
+  async enableManualControl(phoneNumber, agentId = 'human') {
+    // Alias para takeManualControl para compatibilidade
+    return await this.takeManualControl(phoneNumber, agentId);
+  }
+
   async takeManualControl(phoneNumber, agentId = 'human') {
     try {
       // Remove timeout da conversa mas mantém na lista ativa
@@ -520,6 +525,57 @@ Obrigado pela paciência! 🙏
     }
   }
 
+  // Método para liberar controle e finalizar conversa (compatibilidade)
+  async releaseControlAndFinalize(phoneNumber) {
+    try {
+      console.log(`🔚 Finalizando conversa para ${phoneNumber}`);
+      
+      // Obtém informações do controle manual antes de remover
+      const manualInfo = this.getManualControlInfo(phoneNumber);
+      const agentId = manualInfo ? manualInfo.agentId : 'atendente';
+
+      // Remove controle manual
+      this.manualControl.delete(phoneNumber);
+
+      // Envia mensagem de finalização
+      const finalMessage = `✅ **Atendimento Manual Encerrado**
+
+O atendimento manual foi encerrado e o assistente virtual da ${config.company.name} está de volta!
+
+🤖 Como posso ajudá-lo hoje?
+
+Digite "empresa" se você representa uma empresa interessada em nossos serviços de RH
+Digite "candidato" se você está procurando oportunidades de emprego
+
+---
+*Sistema reiniciado automaticamente*`;
+
+      await this.sendMessage(phoneNumber, finalMessage);
+      
+      // Salva a mensagem de finalização
+      await this.saveAgentMessage(phoneNumber, finalMessage);
+      
+      // Desabilita controle manual no banco de dados
+      await this.database.disableManualControl(phoneNumber);
+      
+      // Finaliza a conversa no banco de dados
+      await this.database.finalizeConversation(phoneNumber);
+      
+      console.log(`✅ Conversa finalizada para ${phoneNumber}`);
+      
+      return {
+        success: true,
+        finalMessage: finalMessage
+      };
+    } catch (error) {
+      console.error('Erro ao finalizar conversa:', error);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
+
   // Finaliza a conversa após timeout
   async finalizeConversation(phoneNumber) {
     try {
@@ -552,6 +608,21 @@ Obrigado por escolher a ${config.company.name}! 🙏
       
     } catch (error) {
       console.error('Erro ao finalizar conversa:', error);
+    }
+  }
+
+  // Método para obter status de controle manual (compatibilidade)
+  async getManualControlStatus(phoneNumber) {
+    try {
+      const manualInfo = this.getManualControlInfo(phoneNumber);
+      return {
+        enabled: !!manualInfo,
+        agentId: manualInfo ? manualInfo.agentId : null,
+        takenAt: manualInfo ? manualInfo.takenAt : null
+      };
+    } catch (error) {
+      console.error('Erro ao obter status de controle manual:', error);
+      return { enabled: false, agentId: null, takenAt: null };
     }
   }
 
