@@ -159,6 +159,19 @@ class Database {
     });
   }
 
+  async getConversations(limit = 100) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        'SELECT * FROM conversations ORDER BY created_at DESC LIMIT ?',
+        [limit],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
+    });
+  }
+
   async updateConversationUserType(conversationId, userType) {
     return new Promise((resolve, reject) => {
       this.db.run(
@@ -238,19 +251,7 @@ class Database {
     });
   }
 
-  // Método para finalizar conversa
-  async finalizeConversation(phoneNumber) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        'UPDATE conversations SET status = "finalized", updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
-        [phoneNumber],
-        function(err) {
-          if (err) reject(err);
-          else resolve(this.changes);
-        }
-      );
-    });
-  }
+
 
   async markFirstMessageHandled(phoneNumber) {
     return new Promise((resolve, reject) => {

@@ -640,6 +640,30 @@ Digite "candidato" se você está procurando oportunidades de emprego
   isConnected() {
     return this.isReady;
   }
+
+  getActiveConversationsStats() {
+    try {
+      // Retorna estatísticas básicas para compatibilidade
+      return {
+        total: 0,
+        conversations: [],
+        manualControl: {
+          total: 0,
+          conversations: []
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao obter estatísticas de conversas ativas:', error);
+      return {
+        total: 0,
+        conversations: [],
+        manualControl: {
+          total: 0,
+          conversations: []
+        }
+      };
+    }
+  }
 }
 
 module.exports = WhatsAppClient;

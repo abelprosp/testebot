@@ -19,6 +19,7 @@
     "setup": "node setup-env.js",
     "test-groq": "node test-groq.js",
     "test-finalization": "node test-finalization.js",
+    "test-error-fix": "node test-error-fix.js",
     "diagnose": "node diagnose.js"
   },
   "keywords": [
