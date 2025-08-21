@@ -1,0 +1,34 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/api-only.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/dashboard",
+      "dest": "src/api-only.js"
+    },
+    {
+      "src": "/",
+      "dest": "src/api-only.js"
+    },
+    {
+      "src": "/health",
+      "dest": "src/api-only.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "src/api-only.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "src/api-only.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}
