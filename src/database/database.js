@@ -31,6 +31,7 @@ class Database {
           manual_control_enabled BOOLEAN DEFAULT 0,
           agent_id TEXT,
           manual_control_taken_at DATETIME,
+          finalized_at DATETIME,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -296,10 +297,23 @@ class Database {
     });
   }
 
+  async isConversationFinalized(phoneNumber) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        'SELECT status FROM conversations WHERE phone_number = ? ORDER BY created_at DESC LIMIT 1',
+        [phoneNumber],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row ? row.status === 'finalized' : false);
+        }
+      );
+    });
+  }
+
   async markConversationAsFinalized(phoneNumber) {
     return new Promise((resolve, reject) => {
       this.db.run(
-        'UPDATE conversations SET status = "finalized", finalized_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE phone_number = ?',
+        'UPDATE conversations SET status = "finalized", finalized_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE phone_number = ? AND status != "finalized"',
         [phoneNumber],
         function(err) {
           if (err) reject(err);
@@ -560,6 +574,47 @@ class Database {
         (err, row) => {
           if (err) reject(err);
           else resolve(row);
+        }
+      );
+    });
+  }
+
+  async getConversationStats() {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT 
+          COUNT(*) as total,
+          SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active,
+          SUM(CASE WHEN status = 'finalized' THEN 1 ELSE 0 END) as finalized,
+          SUM(CASE WHEN manual_control_enabled = 1 THEN 1 ELSE 0 END) as manual_control,
+          SUM(CASE WHEN is_first_message = 1 THEN 1 ELSE 0 END) as first_messages
+        FROM conversations`,
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  }
+
+  async getActiveConversations() {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT 
+          phone_number,
+          user_type,
+          status,
+          is_first_message,
+          manual_control_enabled,
+          agent_id,
+          manual_control_taken_at,
+          created_at
+        FROM conversations 
+        WHERE status = 'active' 
+        ORDER BY created_at DESC`,
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
         }
       );
     });
