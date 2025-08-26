@@ -12,6 +12,8 @@
     "token-watch": "node scripts/token-monitor.js --watch",
     "setup-groq": "node scripts/setup-groq.js",
     "setup-supabase": "node scripts/setup-supabase.js",
+    "install-deps": "bash scripts/install-linux-deps.sh",
+    "setup-production": "bash scripts/setup-production.sh",
     "monitor": "node scripts/restart-monitor.js",
     "start:monitored": "node scripts/restart-monitor.js",
     "build": "echo 'Build completed'",

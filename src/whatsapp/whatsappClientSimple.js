@@ -1552,12 +1552,19 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
 
 // Função para detectar o caminho do Chrome
 function getChromeExecutablePath() {
-  // Primeiro, tenta usar a configuração do config
+  // PRIORIDADE: Variável de ambiente (definida pelo script de produção)
+  if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+    console.log('🔍 Chrome configurado via env:', process.env.PUPPETEER_EXECUTABLE_PATH);
+    return process.env.PUPPETEER_EXECUTABLE_PATH;
+  }
+  
+  // Segundo: configuração do config
   if (config.whatsapp.executablePath) {
+    console.log('🔍 Chrome configurado via config:', config.whatsapp.executablePath);
     return config.whatsapp.executablePath;
   }
   
-  // Se não estiver configurado, detecta automaticamente
+  // Terceiro: detecta automaticamente
   if (process.platform === 'win32') {
     // Windows
     const possiblePaths = [
@@ -1570,7 +1577,7 @@ function getChromeExecutablePath() {
       try {
         const fs = require('fs');
         if (fs.existsSync(path)) {
-          console.log('🔍 Chrome detectado em:', path);
+          console.log('🔍 Chrome detectado automaticamente em:', path);
           return path;
         }
       } catch (error) {
@@ -1578,19 +1585,21 @@ function getChromeExecutablePath() {
       }
     }
   } else if (process.platform === 'linux') {
-    // Linux
+    // Linux - ordem de prioridade melhorada
     const possiblePaths = [
+      '/usr/bin/google-chrome-stable', // Preferência para versão estável
       '/usr/bin/google-chrome',
-      '/usr/bin/google-chrome-stable',
       '/usr/bin/chromium-browser',
-      '/usr/bin/chromium'
+      '/usr/bin/chromium',
+      '/opt/google/chrome/chrome', // Algumas distribuições instalam aqui
+      '/snap/bin/chromium'         // Snap packages
     ];
     
     for (const path of possiblePaths) {
       try {
         const fs = require('fs');
         if (fs.existsSync(path)) {
-          console.log('🔍 Chrome detectado em:', path);
+          console.log('🔍 Chrome detectado automaticamente em:', path);
           return path;
         }
       } catch (error) {
@@ -1599,8 +1608,10 @@ function getChromeExecutablePath() {
     }
   }
   
-  // Se não encontrar, deixa o Puppeteer usar o Chrome padrão
-  console.log('⚠️ Chrome não detectado automaticamente, usando padrão do Puppeteer');
+  // Se não encontrar, avisa e usa padrão
+  console.log('⚠️ Chrome não detectado! Para resolver:');
+  console.log('   1. Execute: bash scripts/setup-production.sh');
+  console.log('   2. Ou defina: export PUPPETEER_EXECUTABLE_PATH=/caminho/para/chrome');
   return undefined;
 }
 
