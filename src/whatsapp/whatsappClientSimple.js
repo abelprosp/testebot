@@ -214,22 +214,51 @@ class WhatsAppClientSimple {
     // Evento quando o QR Code é gerado
     this.client.on('qr', (qr) => {
       console.log('📱 QR Code gerado pelo WhatsApp!');
+      console.log('📋 Detalhes do QR Code recebido:', {
+        timestamp: new Date().toISOString(),
+        qrLength: qr ? qr.length : 0,
+        qrPreview: qr ? qr.substring(0, 50) + '...' : 'null',
+        previousQrExists: !!this.qrCode,
+        clientStatus: {
+          isReady: this.isReady,
+          hasClient: !!this.client,
+          hasPupPage: !!this.client?.pupPage,
+          isInitializing: this.isInitializing
+        }
+      });
       
       // Salva o QR Code para uso posterior
       this.qrCode = qr;
+      console.log('💾 QR Code salvo em this.qrCode');
       
       // Gera QR Code no terminal
       try {
+        console.log('🖥️ Tentando gerar QR Code no terminal...');
         qrcodeTerminal.generate(qr, { small: true });
         console.log('📱 QR Code gerado no terminal com sucesso');
       } catch (error) {
         console.error('❌ Erro ao gerar QR Code no terminal:', error);
+        console.error('📋 Detalhes do erro no terminal:', {
+          message: error.message,
+          stack: error.stack?.split('\n').slice(0, 3),
+          qrCodeValid: !!qr && qr.length > 0
+        });
       }
     });
 
     // Evento quando o cliente está pronto
     this.client.on('ready', () => {
       console.log('✅ Cliente WhatsApp conectado e pronto!');
+      console.log('📋 Estado pós-conexão:', {
+        timestamp: new Date().toISOString(),
+        isReady: true,
+        hasClient: !!this.client,
+        hasPupPage: !!this.client?.pupPage,
+        qrCodeExisted: !!this.qrCode,
+        retryCount: this.retryCount,
+        reconnectAttempts: this.reconnectAttempts,
+        clientInfo: this.client.info || 'não disponível'
+      });
       
       this.isReady = true;
       this.retryCount = 0; // Reset retry count on success
@@ -238,7 +267,13 @@ class WhatsAppClientSimple {
       // Limpa o QR Code quando conectado
       if (this.qrCode) {
         console.log('🧹 Limpando QR Code após conexão');
+        console.log('📋 QR Code removido:', {
+          qrCodeLength: this.qrCode.length,
+          timestamp: new Date().toISOString()
+        });
         this.qrCode = null;
+      } else {
+        console.log('📋 Nenhum QR Code para limpar');
       }
     });
 
@@ -250,35 +285,81 @@ class WhatsAppClientSimple {
     // Evento de autenticação
     this.client.on('authenticated', () => {
       console.log('🔐 WhatsApp autenticado com sucesso!');
-      console.log('📋 Status após autenticação:', {
+      console.log('📋 Status detalhado após autenticação:', {
+        timestamp: new Date().toISOString(),
         isReady: this.isReady,
         qrCode: !!this.qrCode,
+        qrCodeLength: this.qrCode ? this.qrCode.length : 0,
         hasClient: !!this.client,
-        hasPupPage: !!this.client?.pupPage
+        hasPupPage: !!this.client?.pupPage,
+        isInitializing: this.isInitializing,
+        retryCount: this.retryCount,
+        reconnectAttempts: this.reconnectAttempts,
+        authStrategy: this.client.authStrategy ? 'LocalAuth' : 'desconhecido'
       });
     });
 
     // Evento de desconexão
     this.client.on('disconnected', (reason) => {
       console.log('❌ Cliente WhatsApp desconectado:', reason);
+      console.log('📋 Detalhes da desconexão:', {
+        reason: reason,
+        timestamp: new Date().toISOString(),
+        wasReady: this.isReady,
+        qrCodeExisted: !!this.qrCode,
+        hasClient: !!this.client,
+        retryCount: this.retryCount,
+        reconnectAttempts: this.reconnectAttempts,
+        autoReconnectEnabled: this.autoReconnectEnabled,
+        isInitializing: this.isInitializing
+      });
       
       this.isReady = false;
       
       // Tenta reconectar automaticamente
       if (this.autoReconnectEnabled) {
         console.log('🔄 Tentando reconexão automática...');
+        console.log('📋 Configuração de reconexão:', {
+          autoReconnectEnabled: this.autoReconnectEnabled,
+          reconnectAttempts: this.reconnectAttempts,
+          retryCount: this.retryCount,
+          maxRetries: this.maxRetries
+        });
         this.handleConnectionIssue();
+      } else {
+        console.log('🚫 Reconexão automática desabilitada');
       }
     });
 
     // Evento de loading screen
     this.client.on('loading_screen', (percent, message) => {
       console.log(`📱 Carregando WhatsApp: ${percent}% - ${message}`);
+      if (percent % 20 === 0 || percent >= 90) { // Log mais detalhado a cada 20% ou nos últimos %
+        console.log('📋 Detalhes do carregamento:', {
+          percent: percent,
+          message: message,
+          timestamp: new Date().toISOString(),
+          isReady: this.isReady,
+          hasClient: !!this.client,
+          isInitializing: this.isInitializing
+        });
+      }
     });
 
     // Evento de auth_failure
     this.client.on('auth_failure', (message) => {
       console.log('❌ Falha na autenticação WhatsApp:', message);
+      console.error('📋 Detalhes da falha de autenticação:', {
+        failureMessage: message,
+        timestamp: new Date().toISOString(),
+        isReady: this.isReady,
+        qrCodeExists: !!this.qrCode,
+        hasClient: !!this.client,
+        retryCount: this.retryCount,
+        maxRetries: this.maxRetries,
+        isInitializing: this.isInitializing,
+        authStrategy: this.client.authStrategy ? 'LocalAuth' : 'desconhecido'
+      });
     });
 
     console.log('📱 Event handlers configurados com sucesso');
@@ -393,21 +474,6 @@ Obrigado pela confiança! 🙏
         success: true,
         message: `Controle manual liberado para ${phoneNumber}`,
         agentId: agentId,
-        releasedAt: new Date()
-      };
-
-    } catch (error) {
-      console.error('Erro ao liberar controle manual:', error);
-      return {
-        success: false,
-        error: 'Erro ao liberar controle manual'
-      };
-    }
-  }
-      
-      return {
-        success: true,
-        message: `Controle manual liberado e fluxo reiniciado para ${phoneNumber}`,
         releasedAt: new Date()
       };
 
@@ -645,11 +711,13 @@ Obrigado por escolher a ${config.company.name}! 🙏
 
       console.log(`📱 Nova mensagem de ${phoneNumber}: ${messageText}`);
 
-      // Verifica se a conversa está finalizada
+      // Verifica se a conversa foi finalizada
       const conversation = await this.database.getConversation(phoneNumber);
       if (conversation && conversation.status === 'finalized') {
-        console.log(`🔚 Mensagem de ${phoneNumber} ignorada - conversa finalizada`);
-        return;
+        console.log(`🆕 Nova mensagem após finalização para ${phoneNumber} - criando nova conversa`);
+        // Cria uma nova conversa para a nova mensagem
+        await this.database.createConversation(phoneNumber, 'unknown');
+        // Continua o processamento normalmente
       }
 
       // Intercepta imediatamente anexos/links antes de qualquer lógica
@@ -927,16 +995,34 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
   }
 
   async initialize() {
+    const initStartTime = Date.now();
     try {
       if (this.isInitializing) {
         console.log('⏳ Inicialização do WhatsApp já em andamento...');
+        console.log('📋 Estado da inicialização em andamento:', {
+          hasInitializePromise: !!this.initializePromise,
+          isReady: this.isReady,
+          hasClient: !!this.client,
+          retryCount: this.retryCount
+        });
         return this.initializePromise;
       }
+      
       this.isInitializing = true;
       console.log('🚀 Iniciando cliente WhatsApp (versão simplificada)...');
+      console.log('📋 Estado inicial da inicialização:', {
+        timestamp: new Date().toISOString(),
+        isReady: this.isReady,
+        hasClient: !!this.client,
+        retryCount: this.retryCount,
+        maxRetries: this.maxRetries,
+        qrCodeExists: !!this.qrCode,
+        reconnectAttempts: this.reconnectAttempts
+      });
       console.log('⏳ Aguarde, isso pode levar alguns minutos...');
       
       // Timeout reduzido para inicialização
+      console.log('🔧 Configurando promises de inicialização...');
       const initPromise = this.client.initialize();
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Inicialização timeout')), 120000) // 2 minutos
@@ -944,14 +1030,46 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
       
       console.log('🔄 Aguardando inicialização do WhatsApp...');
       console.log('⏰ Timeout configurado para 120 segundos');
+      console.log('📋 Configuração do cliente:', {
+        hasAuthStrategy: !!this.client.authStrategy,
+        hasPuppeteer: !!this.client.puppeteer,
+        clientInitialized: !!this.client
+      });
       
       this.initializePromise = Promise.race([initPromise, timeoutPromise]);
+      
+      console.log('⏳ Executando inicialização...');
       await this.initializePromise;
       
-      console.log('✅ WhatsApp inicializado com sucesso!');
+      const initTime = Math.floor((Date.now() - initStartTime) / 1000);
+      console.log(`✅ WhatsApp inicializado com sucesso em ${initTime} segundos!`);
+      console.log('📋 Estado pós-inicialização:', {
+        isReady: this.isReady,
+        hasClient: !!this.client,
+        hasPupPage: !!this.client?.pupPage,
+        qrCodeExists: !!this.qrCode,
+        totalInitTime: `${initTime}s`,
+        timestamp: new Date().toISOString()
+      });
       
     } catch (error) {
-      console.error('❌ Erro ao inicializar cliente WhatsApp:', error);
+      const initTime = Math.floor((Date.now() - initStartTime) / 1000);
+      console.error(`❌ Erro ao inicializar cliente WhatsApp após ${initTime}s:`, error);
+      console.error('📋 Detalhes completos do erro de inicialização:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack?.split('\n').slice(0, 8),
+        initTimeSeconds: initTime,
+        retryCount: this.retryCount,
+        maxRetries: this.maxRetries,
+        clientState: {
+          hasClient: !!this.client,
+          isReady: this.isReady,
+          qrCodeExists: !!this.qrCode,
+          isInitializing: this.isInitializing
+        },
+        timestamp: new Date().toISOString()
+      });
       
       // Tenta reinicializar se for erro de protocolo e ainda não excedeu tentativas
       if ((error.message.includes('Protocol error') || 
@@ -1071,112 +1189,245 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
   async generateQRCode() {
     try {
       console.log('📱 Iniciando geração de QR Code...');
-      console.log('📋 Status do cliente:', {
+      console.log('📋 Status detalhado do cliente:', {
+        timestamp: new Date().toISOString(),
         isConnected: this.isConnected(),
         hasClient: !!this.client,
         hasPupPage: !!this.client?.pupPage,
         qrCodeAvailable: !!this.qrCode,
-        isReady: this.isReady
+        qrCodeLength: this.qrCode ? this.qrCode.length : 0,
+        isReady: this.isReady,
+        isInitializing: this.isInitializing,
+        retryCount: this.retryCount,
+        maxRetries: this.maxRetries,
+        reconnectAttempts: this.reconnectAttempts
       });
 
       if (this.isConnected()) {
-        console.log('📱 WhatsApp já está conectado');
+        console.log('📱 WhatsApp já está conectado - não é necessário gerar QR Code');
+        console.log('📋 Status de conexão:', {
+          isReady: this.isReady,
+          hasClient: !!this.client,
+          hasPupPage: !!this.client?.pupPage
+        });
         return null;
       }
 
       if (!this.client) {
         console.log('📱 Cliente WhatsApp não inicializado');
+        console.log('📋 Estado do cliente:', {
+          client: this.client,
+          isInitializing: this.isInitializing,
+          retryCount: this.retryCount
+        });
         return null;
       }
 
       // Verifica se há um QR Code disponível
       if (this.qrCode) {
         console.log('📱 QR Code já disponível, gerando base64...');
-        // Gera QR Code em base64
-        const qrCodeBase64 = await qrcode.toDataURL(this.qrCode, {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
+        console.log('📋 Detalhes do QR Code existente:', {
+          qrLength: this.qrCode.length,
+          qrPreview: this.qrCode.substring(0, 30) + '...',
+          generationTime: new Date().toISOString()
         });
         
-        console.log('📱 QR Code base64 gerado com sucesso!');
-        // Remove o prefixo data:image/png;base64, para retornar apenas o base64
-        return qrCodeBase64.split(',')[1];
+        try {
+          // Gera QR Code em base64
+          console.log('🔄 Convertendo QR Code para base64...');
+          const qrCodeBase64 = await qrcode.toDataURL(this.qrCode, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+          
+          console.log('📱 QR Code base64 gerado com sucesso!');
+          console.log('📋 Informações do base64:', {
+            totalLength: qrCodeBase64.length,
+            prefix: qrCodeBase64.substring(0, 30),
+            hasComma: qrCodeBase64.includes(','),
+            splitParts: qrCodeBase64.split(',').length
+          });
+          
+          // Remove o prefixo data:image/png;base64, para retornar apenas o base64
+          return qrCodeBase64.split(',')[1];
+        } catch (qrGenError) {
+          console.error('❌ Erro ao converter QR Code para base64:', qrGenError);
+          console.error('📋 Detalhes do erro de conversão:', {
+            message: qrGenError.message,
+            stack: qrGenError.stack?.split('\n').slice(0, 5),
+            qrCodeValid: !!this.qrCode && this.qrCode.length > 0,
+            qrCodeType: typeof this.qrCode
+          });
+          throw qrGenError;
+        }
       }
 
       // Se não há QR Code disponível, tenta forçar uma nova geração
       console.log('📱 Forçando geração de novo QR Code...');
+      console.log('📋 Estado antes da geração forçada:', {
+        qrCodeExists: !!this.qrCode,
+        isConnected: this.isConnected(),
+        isInitializing: this.isInitializing,
+        isReady: this.isReady
+      });
       
       // Limpa QR Code anterior
       this.qrCode = null;
+      console.log('🧹 QR Code anterior removido');
       
       // Se não estiver conectado, inicia a inicialização em background (não bloqueia)
       if (!this.isConnected()) {
         console.log('📱 WhatsApp não está conectado, reinicializando (background)...');
+        console.log('📋 Condições de inicialização:', {
+          isReady: this.isReady,
+          isInitializing: this.isInitializing,
+          hasClient: !!this.client
+        });
+        
         try {
           // Dispara a inicialização sem aguardar, evitando concorrência
           if (!this.isReady && !this.isInitializing) {
+            console.log('🚀 Iniciando processo de inicialização em background...');
             this.initialize().catch((error) => {
               console.error('❌ Erro ao reinicializar WhatsApp (background):', error);
+              console.error('📋 Detalhes do erro de inicialização:', {
+                message: error.message,
+                stack: error.stack?.split('\n').slice(0, 3),
+                isInitializing: this.isInitializing,
+                retryCount: this.retryCount
+              });
             });
           } else if (this.isInitializing) {
             console.log('⏳ Já existe uma inicialização em andamento, aguardando QR...');
+          } else {
+            console.log('⚠️ Cliente está pronto mas não conectado - situação inesperada');
           }
         } catch (error) {
           console.error('❌ Erro ao agendar reinicialização do WhatsApp:', error);
+          console.error('📋 Detalhes do erro de agendamento:', {
+            message: error.message,
+            stack: error.stack?.split('\n').slice(0, 3)
+          });
         }
       }
       
       // Aguarda até 90 segundos para o QR Code ser gerado
       let attempts = 0;
       const maxAttempts = 90;
+      const startTime = Date.now();
+      
+      console.log(`⏱️ Iniciando espera por QR Code (máximo ${maxAttempts} segundos)...`);
       
       while (!this.qrCode && attempts < maxAttempts) {
-        console.log(`📱 Tentativa ${attempts + 1}/${maxAttempts} - Aguardando QR Code...`);
-        console.log('📋 Status atual:', {
-          qrCode: !!this.qrCode,
-          isReady: this.isReady,
-          hasPupPage: !!this.client?.pupPage,
-          isConnected: this.isConnected()
-        });
+        const currentTime = Date.now();
+        const elapsedSeconds = Math.floor((currentTime - startTime) / 1000);
+        
+        if (attempts % 10 === 0 || attempts < 5) { // Log a cada 10 tentativas ou primeiras 5
+          console.log(`📱 Tentativa ${attempts + 1}/${maxAttempts} - Aguardando QR Code... (${elapsedSeconds}s)`);
+          console.log('📋 Status detalhado atual:', {
+            qrCode: !!this.qrCode,
+            qrCodeLength: this.qrCode ? this.qrCode.length : 0,
+            isReady: this.isReady,
+            isInitializing: this.isInitializing,
+            hasPupPage: !!this.client?.pupPage,
+            isConnected: this.isConnected(),
+            elapsedTime: `${elapsedSeconds}s`,
+            clientExists: !!this.client
+          });
+        }
+        
         await new Promise(resolve => setTimeout(resolve, 1000));
         attempts++;
       }
       
       if (this.qrCode) {
-        console.log('📱 QR Code gerado com sucesso!');
-        // Gera QR Code em base64
-        const qrCodeBase64 = await qrcode.toDataURL(this.qrCode, {
-          width: 300,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF'
-          }
+        const totalTime = Math.floor((Date.now() - startTime) / 1000);
+        console.log(`📱 QR Code gerado com sucesso após ${totalTime} segundos!`);
+        console.log('📋 Sucesso na geração:', {
+          qrLength: this.qrCode.length,
+          qrPreview: this.qrCode.substring(0, 30) + '...',
+          attempts: attempts,
+          totalTimeSeconds: totalTime,
+          timestamp: new Date().toISOString()
         });
         
-        console.log('📱 QR Code base64 gerado com sucesso!');
-        // Remove o prefixo data:image/png;base64, para retornar apenas o base64
-        return qrCodeBase64.split(',')[1];
+        try {
+          console.log('🔄 Convertendo QR Code final para base64...');
+          // Gera QR Code em base64
+          const qrCodeBase64 = await qrcode.toDataURL(this.qrCode, {
+            width: 300,
+            margin: 2,
+            color: {
+              dark: '#000000',
+              light: '#FFFFFF'
+            }
+          });
+          
+          console.log('📱 QR Code base64 gerado com sucesso!');
+          console.log('📋 Informações finais do base64:', {
+            totalLength: qrCodeBase64.length,
+            prefix: qrCodeBase64.substring(0, 30),
+            hasComma: qrCodeBase64.includes(','),
+            splitParts: qrCodeBase64.split(',').length
+          });
+          
+          // Remove o prefixo data:image/png;base64, para retornar apenas o base64
+          const finalBase64 = qrCodeBase64.split(',')[1];
+          console.log(`✅ QR Code processado com sucesso! Base64 length: ${finalBase64.length}`);
+          return finalBase64;
+          
+        } catch (finalError) {
+          console.error('❌ Erro na conversão final para base64:', finalError);
+          console.error('📋 Detalhes do erro final:', {
+            message: finalError.message,
+            stack: finalError.stack?.split('\n').slice(0, 5),
+            qrCodeValid: !!this.qrCode,
+            qrCodeLength: this.qrCode ? this.qrCode.length : 0
+          });
+          throw finalError;
+        }
       } else {
-        console.log('📱 QR Code não disponível após tentativas');
-        console.log('📋 Status final:', {
+        const totalTime = Math.floor((Date.now() - startTime) / 1000);
+        console.log(`📱 QR Code não disponível após ${attempts} tentativas (${totalTime}s)`);
+        console.log('📋 Status final detalhado:', {
           qrCode: !!this.qrCode,
+          qrCodeValue: this.qrCode || 'null',
           isReady: this.isReady,
+          isInitializing: this.isInitializing,
           hasPupPage: !!this.client?.pupPage,
+          hasClient: !!this.client,
           attempts: attempts,
-          isConnected: this.isConnected()
+          maxAttempts: maxAttempts,
+          totalTimeSeconds: totalTime,
+          isConnected: this.isConnected(),
+          retryCount: this.retryCount,
+          timestamp: new Date().toISOString()
         });
         return null;
       }
     } catch (error) {
-      console.error('❌ Erro ao gerar QR Code:', error);
-      console.error('📋 Detalhes do erro:', {
+      console.error('❌ Erro crítico ao gerar QR Code:', error);
+      console.error('📋 Detalhes completos do erro:', {
         message: error.message,
-        stack: error.stack?.split('\n')[0]
+        name: error.name,
+        stack: error.stack?.split('\n').slice(0, 10),
+        timestamp: new Date().toISOString(),
+        clientStatus: {
+          hasClient: !!this.client,
+          isReady: this.isReady,
+          isInitializing: this.isInitializing,
+          qrCodeExists: !!this.qrCode,
+          isConnected: this.isConnected()
+        },
+        systemInfo: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          memory: process.memoryUsage()
+        }
       });
       return null;
     }

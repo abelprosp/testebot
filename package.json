@@ -5,7 +5,13 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
+    "start:whatsapp": "node start-with-whatsapp.js",
     "dev": "nodemon src/index.js",
+    "dev:whatsapp": "nodemon start-with-whatsapp.js",
+    "token-stats": "node scripts/token-monitor.js",
+    "token-watch": "node scripts/token-monitor.js --watch",
+    "setup-groq": "node scripts/setup-groq.js",
+    "setup-supabase": "node scripts/setup-supabase.js",
     "monitor": "node scripts/restart-monitor.js",
     "start:monitored": "node scripts/restart-monitor.js",
     "build": "echo 'Build completed'",

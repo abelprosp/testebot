@@ -3,7 +3,19 @@ const config = require('../config/config');
 
 class JobService {
   constructor() {
-    this.supabase = createClient(config.supabase.url, config.supabase.key);
+    // Configuração do Supabase com logs detalhados
+    console.log('🔧 Configurando JobService com Supabase...');
+    console.log('📋 URL Supabase:', config.supabase?.url || 'NÃO DEFINIDA');
+    console.log('📋 Key Supabase:', config.supabase?.key ? '✅ Definida' : '❌ NÃO DEFINIDA');
+    
+    if (!config.supabase?.url || !config.supabase?.key) {
+      console.error('❌ Configuração do Supabase incompleta!');
+      this.supabase = null;
+    } else {
+      this.supabase = createClient(config.supabase.url, config.supabase.key);
+      console.log('✅ Cliente Supabase inicializado');
+    }
+    
     this.jobs = [];
     this.lastFetch = null;
     this.cacheDuration = 5 * 60 * 1000; // 5 minutos
@@ -13,6 +25,11 @@ class JobService {
     try {
       console.log('🔄 Carregando vagas do Supabase...');
       
+      if (!this.supabase) {
+        console.error('❌ Cliente Supabase não inicializado');
+        return [];
+      }
+
       const { data, error } = await this.supabase
         .from('jobs')
         .select('*')
@@ -21,6 +38,7 @@ class JobService {
 
       if (error) {
         console.error('❌ Erro ao carregar vagas do Supabase:', error);
+        console.error('❌ Detalhes do erro:', JSON.stringify(error, null, 2));
         return [];
       }
 
@@ -28,6 +46,14 @@ class JobService {
       this.lastFetch = Date.now();
       
       console.log(`✅ ${this.jobs.length} vagas carregadas do Supabase`);
+      if (this.jobs.length > 0) {
+        console.log('📋 Primeira vaga:', {
+          title: this.jobs[0].title,
+          company: this.jobs[0].company,
+          location: this.jobs[0].location
+        });
+      }
+      
       return this.jobs;
     } catch (error) {
       console.error('❌ Erro ao conectar com Supabase:', error);
@@ -54,7 +80,7 @@ class JobService {
       }
 
       if (!candidateProfile || Object.keys(candidateProfile).length === 0) {
-        return jobs.slice(0, 3); // Retorna as primeiras 3 vagas se não há perfil
+        return jobs; // Retorna TODAS as vagas se não há perfil
       }
 
       const scoredJobs = jobs.map(job => {
@@ -85,13 +111,11 @@ class JobService {
 
         // Ordena vagas de motorista por score e depois adiciona outras vagas
         const sortedMotoristaJobs = motoristaJobs
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 3); // Máximo 3 vagas de motorista
+          .sort((a, b) => b.score - a.score); // TODAS as vagas de motorista
 
         const sortedOtherJobs = otherJobs
-          .filter(job => job.score > 0.3)
-          .sort((a, b) => b.score - a.score)
-          .slice(0, 2); // Máximo 2 outras vagas
+          .filter(job => job.score > 0.1) // Score mais baixo para incluir mais vagas
+          .sort((a, b) => b.score - a.score); // TODAS as outras vagas relevantes
 
         const finalJobs = [...sortedMotoristaJobs, ...sortedOtherJobs];
         
@@ -236,9 +260,8 @@ class JobService {
     });
     
     return scoredJobs
-      .filter(job => job.score > 0.1)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 3);
+      .filter(job => job.score > 0.05) // Score bem baixo para incluir mais vagas
+      .sort((a, b) => b.score - a.score); // TODAS as vagas relevantes, sem limite
   }
 
   // Formata a lista de vagas para exibição

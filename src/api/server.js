@@ -93,38 +93,117 @@ class APIServer {
 
     // Rota para gerar QR Code do WhatsApp
     this.app.get('/whatsapp/qrcode', async (req, res) => {
+      const requestId = Math.random().toString(36).substring(7);
+      const startTime = Date.now();
+      
       try {
+        console.log(`🔍 [${requestId}] Requisição QR Code recebida`, {
+          timestamp: new Date().toISOString(),
+          hasWhatsappClient: !!this.whatsappClient,
+          clientType: this.whatsappClient ? this.whatsappClient.constructor.name : 'null',
+          userAgent: req.get('User-Agent')?.substring(0, 50) || 'não fornecido'
+        });
+
         if (!this.whatsappClient) {
+          console.log(`❌ [${requestId}] WhatsApp client não disponível`, {
+            whatsappClient: this.whatsappClient,
+            nodeEnv: process.env.NODE_ENV || 'development',
+            isRender: !!process.env.RENDER,
+            enableWhatsApp: process.env.ENABLE_WHATSAPP !== 'false'
+          });
+          
           return res.json({
             success: false,
             error: 'WhatsApp não disponível',
             message: 'O WhatsApp está desabilitado temporariamente. O sistema está funcionando apenas com API e Dashboard.',
-            available: false
+            available: false,
+            debug: {
+              hasClient: false,
+              timestamp: new Date().toISOString(),
+              requestId: requestId
+            }
           });
         }
 
+        console.log(`🔧 [${requestId}] WhatsApp client disponível, verificando estado`, {
+          isConnected: this.whatsappClient.isConnected ? this.whatsappClient.isConnected() : 'método não disponível',
+          isReady: this.whatsappClient.isReady,
+          hasClient: !!this.whatsappClient.client,
+          hasPupPage: !!this.whatsappClient.client?.pupPage,
+          qrCodeExists: !!this.whatsappClient.qrCode,
+          isInitializing: this.whatsappClient.isInitializing
+        });
+
+        console.log(`🚀 [${requestId}] Chamando generateQRCode()...`);
         const qrCode = await this.whatsappClient.generateQRCode();
         
+        const duration = Date.now() - startTime;
+        
         if (qrCode) {
+          console.log(`✅ [${requestId}] QR Code gerado com sucesso`, {
+            qrCodeLength: qrCode.length,
+            duration: `${duration}ms`,
+            timestamp: new Date().toISOString()
+          });
+          
           res.json({
             success: true,
             data: {
               qrCode: qrCode,
-              message: 'QR Code gerado com sucesso. Escaneie com o WhatsApp.'
+              message: 'QR Code gerado com sucesso. Escaneie com o WhatsApp.',
+              timestamp: new Date().toISOString(),
+              requestId: requestId,
+              duration: duration
             }
           });
         } else {
+          console.log(`⚠️ [${requestId}] QR Code não foi gerado`, {
+            qrCodeResult: qrCode,
+            clientState: {
+              isConnected: this.whatsappClient.isConnected ? this.whatsappClient.isConnected() : 'método não disponível',
+              isReady: this.whatsappClient.isReady,
+              qrCodeExists: !!this.whatsappClient.qrCode
+            },
+            duration: `${duration}ms`
+          });
+          
           res.json({
             success: false,
-            error: 'Não foi possível gerar QR Code. WhatsApp pode estar conectado.'
+            error: 'Não foi possível gerar QR Code. WhatsApp pode estar conectado.',
+            debug: {
+              qrCodeResult: qrCode,
+              clientConnected: this.whatsappClient.isConnected ? this.whatsappClient.isConnected() : false,
+              timestamp: new Date().toISOString(),
+              requestId: requestId,
+              duration: duration
+            }
           });
         }
       } catch (error) {
-        console.error('Erro ao gerar QR Code:', error);
+        const duration = Date.now() - startTime;
+        console.error(`❌ [${requestId}] Erro crítico ao gerar QR Code:`, error);
+        console.error(`📋 [${requestId}] Detalhes completos do erro:`, {
+          message: error.message,
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 10),
+          duration: `${duration}ms`,
+          clientState: this.whatsappClient ? {
+            hasClient: !!this.whatsappClient.client,
+            isReady: this.whatsappClient.isReady,
+            isInitializing: this.whatsappClient.isInitializing
+          } : 'cliente não disponível',
+          timestamp: new Date().toISOString()
+        });
+        
         res.status(500).json({ 
           success: false, 
-          error: 'Erro ao gerar QR Code',
-          message: 'WhatsApp não está disponível no momento.'
+          error: 'Erro interno do servidor ao gerar QR Code',
+          debug: {
+            message: error.message,
+            requestId: requestId,
+            duration: duration,
+            timestamp: new Date().toISOString()
+          }
         });
       }
     });
@@ -658,6 +737,42 @@ class APIServer {
       }
     });
 
+    // Rota para estatísticas de tokens Groq (monitoramento de uso)
+    this.app.get('/token-stats', (req, res) => {
+      try {
+        if (this.whatsappClient?.groqClient) {
+          const stats = this.whatsappClient.groqClient.getTokenUsageStats();
+          res.json({
+            success: true,
+            data: {
+              ...stats,
+              timestamp: new Date().toISOString(),
+              isOptimized: true
+            }
+          });
+        } else {
+          res.json({
+            success: false,
+            error: 'GroqClient não disponível',
+            data: {
+              totalCalls: 0,
+              totalTokens: 0,
+              cacheHits: 0,
+              cacheMisses: 0,
+              cacheHitRate: 0,
+              cacheSize: 0
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao obter estatísticas de tokens:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Erro interno'
+        });
+      }
+    });
+
     // Middleware para rotas não encontradas
     this.app.use('*', (req, res) => {
       res.status(404).json({
@@ -687,7 +802,8 @@ class APIServer {
           'GET /company-messages/stats',
           'POST /api/chat',
           'GET /api/company',
-          'GET /stats'
+          'GET /stats',
+          'GET /token-stats'
         ]
       });
     });

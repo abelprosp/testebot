@@ -6,33 +6,100 @@ const BusinessHoursService = require('../services/businessHoursService');
 class GroqClient {
   
   constructor() {
-    this.groq = new Groq({
-      apiKey: config.groq.apiKey,
-    });
+    // 🔑 COLOQUE SUA API KEY DA GROQ AQUI:
+    const GROQ_API_KEY_DIRECT = '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';
+    
+    // Usa a chave direta primeiro, depois tenta config
+    const apiKey = GROQ_API_KEY_DIRECT || config.groq.apiKey;
+    
+    // Verifica se a API key está disponível
+    if (!apiKey || apiKey === 'gsk_sua_chave_aqui_exemplo') {
+      console.error('❌ GROQ_API_KEY não está definida! O sistema funcionará com respostas padrão.');
+      this.groq = null;
+    } else {
+      console.log('✅ GROQ_API_KEY carregada com sucesso (direta do código)');
+      this.groq = new Groq({
+        apiKey: apiKey,
+      });
+    }
+    
     this.model = config.groq.model;
     this.jobService = new JobService();
     this.businessHoursService = new BusinessHoursService();
+    
+    console.log('✅ JobService inicializado (conectado ao Supabase)');
+    
+    // Cache para respostas similares (economizar tokens)
+    this.responseCache = new Map();
+    this.maxCacheSize = 100;
+    
+    // Contador de tokens para monitoramento
+    this.tokenUsage = {
+      totalCalls: 0,
+      totalTokens: 0,
+      cacheHits: 0,
+      cacheMisses: 0
+    };
+    
+    // Máximo de mensagens no contexto
+    this.maxContextMessages = 20; // Aumentado para melhor qualidade das respostas
   }
 
   async generateResponse(messages, context = {}) {
     try {
-      const systemPrompt = await this.buildSystemPrompt(context);
+      // Verifica se a API está disponível
+      if (!this.groq) {
+        console.log('⚠️ Groq API não disponível - usando resposta padrão');
+        return this.getFallbackResponse(messages[messages.length - 1]?.content || '');
+      }
+      
+      // Gera chave de cache baseada na mensagem atual e contexto
+      const cacheKey = this.generateCacheKey(messages, context);
+      
+      // Verifica cache primeiro
+      if (this.responseCache.has(cacheKey)) {
+        console.log('💾 Cache HIT - resposta já disponível');
+        this.tokenUsage.cacheHits++;
+        return this.responseCache.get(cacheKey);
+      }
+      
+      this.tokenUsage.cacheMisses++;
+      
+      // Otimiza contexto para economizar tokens
+      const optimizedMessages = this.optimizeContext(messages);
+      const optimizedSystemPrompt = await this.buildOptimizedSystemPrompt(context);
       
       const chatMessages = [
-        { role: 'system', content: systemPrompt },
-        ...messages
+        { role: 'system', content: optimizedSystemPrompt },
+        ...optimizedMessages
       ];
+
+      console.log(`🤖 Chamando Groq API - ${chatMessages.length} mensagens`, {
+        systemPromptLength: optimizedSystemPrompt.length,
+        totalMessages: chatMessages.length
+      });
 
       const completion = await this.groq.chat.completions.create({
         messages: chatMessages,
         model: this.model,
         temperature: 0.8,
-        max_tokens: 1000,
+        max_tokens: 1500, // Aumentado para respostas mais completas com todas as vagas
         top_p: 1,
         stream: false,
       });
 
-      return completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
+      const response = completion.choices[0]?.message?.content || 'Desculpe, não consegui processar sua mensagem.';
+      
+      // Salva no cache
+      this.saveToCache(cacheKey, response);
+      
+      // Atualiza estatísticas
+      this.tokenUsage.totalCalls++;
+      this.tokenUsage.totalTokens += (completion.usage?.total_tokens || 0);
+      
+      console.log(`💰 Tokens usados: ${completion.usage?.total_tokens || 0} | Total: ${this.tokenUsage.totalTokens}`);
+      
+      return response;
     } catch (error) {
       console.error('Erro na Groq API:', error);
       return 'Desculpe, estou enfrentando dificuldades técnicas. Tente novamente em alguns instantes.';
@@ -121,9 +188,95 @@ DIRETRIZES DE SEGURANÇA:
 Responda sempre em português brasileiro de forma natural, calorosa e profissional. Seja você mesmo - um assistente amigável e útil, mas sempre dentro do escopo de recrutamento e seleção!`;
   }
 
+  // Nova função de prompt otimizado (mais conciso)
+  async buildOptimizedSystemPrompt(context) {
+    const company = config.company;
+    const jobs = await this.jobService.getAllJobs();
+    const isCompany = context.userType === 'company';
+    
+    // Prompt muito mais conciso para economizar tokens
+    return `Assistente de RH da ${company.name}. APENAS recrutamento/seleção.
+
+REGRAS:
+- Empresas: verificar horário comercial, aguardar atendente
+- Candidatos: coletar info, mostrar vagas adequadas  
+- Outros: transferir para humano
+- NÃO responder fora do escopo RH
+
+${isCompany ? '' : `VAGAS: ${jobs.map((job, i) => `${i + 1}. ${job.title} - ${job.location}`).join(', ')}`}
+
+Tipo: ${context.userType || 'desconhecido'}
+Horário comercial: ${this.businessHoursService.isBusinessHours() ? 'Sim' : 'Não'}
+Cadastro: ${company.registrationLink}
+
+Seja natural e amigável!`;
+  }
+
+  // Gera chave única para cache
+  generateCacheKey(messages, context) {
+    const lastMessage = messages[messages.length - 1]?.content || '';
+    const contextKey = `${context.userType || 'unknown'}_${context.messageCount || 0}`;
+    return `${contextKey}_${this.hashString(lastMessage)}`;
+  }
+
+  // Hash simples para criar chaves de cache
+  hashString(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  // Otimiza contexto mantendo apenas mensagens relevantes
+  optimizeContext(messages) {
+    // Mantém apenas as últimas N mensagens para economizar tokens
+    const recentMessages = messages.slice(-this.maxContextMessages);
+    
+    // Se há muitas mensagens, resume as anteriores
+    if (messages.length > this.maxContextMessages) {
+      const summarizedContext = {
+        role: 'system',
+        content: `[Contexto anterior resumido: ${messages.length - this.maxContextMessages} mensagens anteriores sobre interesse em vagas/serviços]`
+      };
+      return [summarizedContext, ...recentMessages];
+    }
+    
+    return recentMessages;
+  }
+
+  // Salva resposta no cache
+  saveToCache(key, response) {
+    // Limita tamanho do cache
+    if (this.responseCache.size >= this.maxCacheSize) {
+      const firstKey = this.responseCache.keys().next().value;
+      this.responseCache.delete(firstKey);
+    }
+    
+    this.responseCache.set(key, response);
+  }
+
+  // Função para obter estatísticas de uso
+  getTokenUsageStats() {
+    return {
+      ...this.tokenUsage,
+      cacheHitRate: this.tokenUsage.cacheHits / (this.tokenUsage.cacheHits + this.tokenUsage.cacheMisses) * 100,
+      cacheSize: this.responseCache.size
+    };
+  }
+
   async handleConversation(message, conversationHistory = []) {
     try {
       console.log('🤖 Processando mensagem de forma inteligente:', message);
+      
+      // Verifica respostas pré-definidas primeiro (economiza tokens)
+      const quickResponse = this.getQuickResponse(message);
+      if (quickResponse) {
+        console.log('⚡ Resposta rápida usada - tokens economizados');
+        return quickResponse;
+      }
       
       // Verifica se a mensagem está fora do escopo
       if (this.isOutOfScope(message)) {
@@ -138,11 +291,12 @@ Responda sempre em português brasileiro de forma natural, calorosa e profission
         messageCount: conversationHistory.length
       };
 
-      // Prepara as mensagens para a IA
+      // Prepara as mensagens para a IA (já otimizadas)
       const messages = [];
       
-      // Adiciona histórico da conversa
-      conversationHistory.forEach(msg => {
+      // Adiciona apenas histórico recente (otimização)
+      const recentHistory = conversationHistory.slice(-this.maxContextMessages);
+      recentHistory.forEach(msg => {
         messages.push({
           role: msg.sender === 'user' ? 'user' : 'assistant',
           content: msg.message
@@ -154,6 +308,8 @@ Responda sempre em português brasileiro de forma natural, calorosa e profission
         role: 'user',
         content: message
       });
+
+      console.log(`📊 Contexto otimizado: ${messages.length} mensagens (de ${conversationHistory.length + 1} originais)`);
 
       // Gera resposta contextual
       const response = await this.generateResponse(messages, context);
@@ -212,6 +368,63 @@ Responda sempre em português brasileiro de forma natural, calorosa e profission
     }
     
     return 'unknown';
+  }
+
+  // Respostas rápidas pré-definidas para economizar tokens
+  getQuickResponse(message) {
+    const msg = message.toLowerCase().trim();
+    
+    // Se não temos Groq API, não usar respostas rápidas limitadas
+    if (!this.groq) {
+      return null; // Força usar getFallbackResponse que é mais inteligente
+    }
+    
+    // PRIORIDADE: Verifica se a pessoa quer se candidatar
+    if (msg.includes('candidat') || msg.includes('inscrever') || msg.includes('aplicar') || 
+        msg.includes('me candidato') || msg.includes('quero me candidatar') ||
+        msg.includes('cadastr') || msg.includes('curricul') || msg.includes('cv') ||
+        msg.includes('se candidatar') || msg.includes('candidatura') ||
+        msg.match(/vaga\s*(numero|número|n[°º]?)\s*\d+/)) {
+      
+      const config = require('../config/config');
+      return `🎯 **Perfeito! Você pode se candidatar às nossas vagas:**
+
+🔗 **Link de Cadastro:** ${config.company.registrationLink}
+
+📋 **No formulário você poderá:**
+• Escolher as vagas de seu interesse
+• Enviar seu currículo
+• Preencher suas informações profissionais
+
+✅ **Dica:** Preencha todas as informações solicitadas para aumentar suas chances!
+
+Qualquer dúvida sobre o processo, estarei aqui para ajudar! 🚀`;
+    }
+    
+    // Respostas simples APENAS para saudações básicas (quando temos API)
+    const quickResponses = {
+      'obrigado': 'De nada! Fico feliz em ajudar! 😊',
+      'obrigada': 'De nada! Fico feliz em ajudar! 😊',
+      'valeu': 'Por nada! Sempre à disposição! 😊',
+      'tchau': 'Até logo! Foi um prazer atendê-lo! 👋',
+      'adeus': 'Até mais! Volte sempre! 👋'
+    };
+    
+    // Verifica mensagens exatas APENAS para despedidas/agradecimentos
+    if (quickResponses[msg]) {
+      return quickResponses[msg];
+    }
+    
+    // Verifica padrões de despedida/agradecimento
+    if (msg.includes('obrigad') || msg.includes('valeu') || msg.includes('muito obrigad')) {
+      return 'De nada! Fico feliz em ajudar! 😊 Precisa de mais alguma coisa?';
+    }
+    
+    if (msg.includes('tchau') || msg.includes('até') || msg.includes('adeus') || msg.includes('falou')) {
+      return 'Até logo! Foi um prazer atendê-lo! 👋 Volte sempre que precisar!';
+    }
+    
+    return null; // Nenhuma resposta rápida encontrada
   }
 
   // Detecta se a mensagem está fora do escopo de RH
@@ -292,6 +505,8 @@ Como posso auxiliá-lo com recrutamento e seleção? 😊`;
   }
 
   getFallbackResponse(message) {
+    console.log('🤖 Usando resposta inteligente sem IA para:', message);
+    
     // Verifica se a mensagem está fora do escopo
     if (this.isOutOfScope(message)) {
       return this.getOutOfScopeResponse(message);
@@ -299,13 +514,88 @@ Como posso auxiliá-lo com recrutamento e seleção? 😊`;
     
     const messageLower = message.toLowerCase();
     
-    if (messageLower.includes('empresa') || messageLower.includes('contratar')) {
-      return this.handleCompanyFlow(message);
-    } else if (messageLower.includes('candidato') || messageLower.includes('emprego')) {
-      return this.handleCandidateFlow(message);
-    } else {
-      return this.handleOtherFlow(message);
+    // PRIORIDADE: Verifica se a pessoa quer se candidatar (mesmo sem IA)
+    if (messageLower.includes('candidat') || messageLower.includes('inscrever') || messageLower.includes('aplicar') || 
+        messageLower.includes('me candidato') || messageLower.includes('quero me candidatar') ||
+        messageLower.includes('cadastr') || messageLower.includes('curricul') || messageLower.includes('cv') ||
+        messageLower.includes('se candidatar') || messageLower.includes('candidatura') ||
+        messageLower.match(/vaga\s*(numero|número|n[°º]?)\s*\d+/)) {
+      
+      const config = require('../config/config');
+      return `🎯 **Perfeito! Você pode se candidatar às nossas vagas:**
+
+🔗 **Link de Cadastro:** ${config.company.registrationLink}
+
+📋 **No formulário você poderá:**
+• Escolher as vagas de seu interesse
+• Enviar seu currículo
+• Preencher suas informações profissionais
+
+✅ **Dica:** Preencha todas as informações solicitadas para aumentar suas chances!
+
+Qualquer dúvida sobre o processo, estarei aqui para ajudar! 🚀`;
     }
+    
+    // Saudações básicas
+    if (messageLower.match(/^(oi|olá|ola|hey|opa)$/i)) {
+      return `Olá! 👋 Bem-vindo à ${config.company.name}!
+
+Sou o assistente virtual de recrutamento e seleção. Como posso ajudá-lo hoje?
+
+📝 Se você é um **candidato**, posso ajudar com:
+• Buscar vagas adequadas ao seu perfil
+• Informações sobre oportunidades
+• Orientações sobre candidatura
+
+🏢 Se você é uma **empresa**, posso:
+• Conectá-lo com nossos especialistas
+• Informações sobre nossos serviços
+
+Em que posso ajudá-lo?`;
+    }
+    
+    // Saudações com horário
+    if (messageLower.includes('bom dia') || messageLower.includes('boa tarde') || messageLower.includes('boa noite')) {
+      const hora = new Date().getHours();
+      let saudacao = 'Olá';
+      if (hora < 12) saudacao = 'Bom dia';
+      else if (hora < 18) saudacao = 'Boa tarde';
+      else saudacao = 'Boa noite';
+      
+      return `${saudacao}! 😊 Como posso ajudá-lo hoje?`;
+    }
+    
+    // Detecção de empresa
+    if (messageLower.includes('empresa') || messageLower.includes('contratar') || 
+        messageLower.includes('serviços') || messageLower.includes('funcionários') ||
+        messageLower.includes('colaboradores') || messageLower.includes('terceirização')) {
+      return this.handleCompanyFlow(message);
+    }
+    
+    // Detecção de candidato
+    if (messageLower.includes('vaga') || messageLower.includes('emprego') || 
+        messageLower.includes('trabalho') || messageLower.includes('oportunidade') ||
+        messageLower.includes('candidato') || messageLower.includes('currículo') ||
+        messageLower.includes('cv') || messageLower.includes('procurando')) {
+      return this.handleCandidateFlow(message);
+    }
+    
+    // Perguntas sobre vagas específicas
+    if (messageLower.includes('quais') && (messageLower.includes('vaga') || messageLower.includes('disponível'))) {
+      return this.handleCandidateFlow(message);
+    }
+    
+    // Mensagem genérica inteligente
+    return `Olá! 👋 
+
+Para melhor atendê-lo, me informe:
+
+📝 **Você é:**
+• Um candidato procurando vagas?
+• Uma empresa interessada em nossos serviços?
+• Tem outras dúvidas?
+
+Estou aqui para ajudar com recrutamento e seleção da ${config.company.name}! 😊`;
   }
 
   async handleCompanyFlow(message) {

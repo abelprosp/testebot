@@ -341,8 +341,8 @@ Assim que surgirem oportunidades compatíveis com seu perfil, entraremos em cont
 *Cadastre-se para receber notificações de novas vagas.*`;
       }
 
-      // Filtra vagas relevantes baseado no histórico
-      const relevantJobs = jobs.slice(0, 5); // Mostra até 5 vagas
+      // Mostra TODAS as vagas disponíveis
+      const relevantJobs = jobs; // Mostra TODAS as vagas
       
       let response = `🎯 **Vagas Encontradas para Você:**
 

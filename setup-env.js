@@ -31,7 +31,7 @@ async function setupEnv() {
   // Coleta as configurações
   const groqApiKey = await question('🔑 Digite sua chave da API Groq (OBRIGATÓRIO): ');
   
-  if (!groqApiKey || groqApiKey === 'sua_chave_api_groq_aqui') {
+  if (!groqApiKey || groqApiKey === '') {
     console.log('\n❌ ERRO: Você precisa fornecer uma chave válida da API Groq!');
     console.log('🔗 Acesse: https://console.groq.com/ para obter sua chave.');
     rl.close();
