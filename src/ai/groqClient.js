@@ -7,7 +7,7 @@ class GroqClient {
   
   constructor() {
     // 🔑 COLOQUE SUA API KEY DA GROQ AQUI:
-    const GROQ_API_KEY_DIRECT = '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';
+    const GROQ_API_KEY_DIRECT = '';
     
     // Usa a chave direta primeiro, depois tenta config
     const apiKey = GROQ_API_KEY_DIRECT || config.groq.apiKey;
