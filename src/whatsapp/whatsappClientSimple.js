@@ -720,23 +720,39 @@ Obrigado por escolher a ${config.company.name}! 🙏
         // Continua o processamento normalmente
       }
 
-      // Intercepta imediatamente anexos/links antes de qualquer lógica
+      // Intercepta imediatamente anexos/documentos reais antes de qualquer lógica
       // MAS apenas se não estiver sob controle manual
       if (!this.isUnderManualControl(phoneNumber)) {
-        const containsUrlEarly = (text) => {
-          if (!text || typeof text !== 'string') return false;
-          const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
-          return urlRegex.test(text);
-        };
-
         const mediaTypes = new Set(['image','video','ptt','audio','document','sticker','location','vcard','multi_vcard','contact_card','contact_card_multiple']);
         const isMediaMessage = !!message.hasMedia || mediaTypes.has(messageType);
-        const isLinkMessage = containsUrlEarly(messageText);
+        const isDocument = message.type === 'document';
+        const isImage = message.type === 'image';
+        const isVideo = message.type === 'video';
+        const isAudio = message.type === 'audio' || message.type === 'ptt';
 
-        if (isMediaMessage || isLinkMessage) {
+        // SÓ responde para anexos reais (documentos, imagens, vídeos, áudios)
+        console.log(`🔍 [DEBUG] Verificando anexo:`, {
+          phoneNumber,
+          messageType,
+          hasMedia: !!message.hasMedia,
+          isMediaMessage,
+          isDocument,
+          isImage,
+          isVideo,
+          isAudio,
+          messageText: messageText.substring(0, 50) + '...'
+        });
+        
+        if (isMediaMessage || isDocument || isImage || isVideo || isAudio) {
           try {
             const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
-            const whatReceived = isMediaMessage && isLinkMessage ? 'um anexo e um link' : (isMediaMessage ? 'um anexo (imagem/documento/áudio/vídeo)' : 'um link');
+            let whatReceived = 'um anexo';
+            
+            if (isDocument) whatReceived = 'um documento';
+            else if (isImage) whatReceived = 'uma imagem';
+            else if (isVideo) whatReceived = 'um vídeo';
+            else if (isAudio) whatReceived = 'um áudio';
+            
             const guidance = `📄 Recebi ${whatReceived}.
 
 Para prosseguir com o envio de documentos/arquivos, utilize nosso formulário de cadastro:
@@ -747,7 +763,7 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
             await this.saveAgentMessage(phoneNumber, guidance);
             return;
           } catch (earlyErr) {
-            console.error('Erro ao enviar orientação inicial de anexos/links:', earlyErr);
+            console.error('Erro ao enviar orientação inicial de anexos:', earlyErr);
           }
         }
       }
@@ -774,27 +790,37 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
       // Salva a mensagem do usuário
       await this.saveUserMessage(phoneNumber, messageText);
 
-      // Detecta anexos/documentos/links e orienta cadastro
+      // Detecta anexos/documentos reais e orienta cadastro
       // MAS apenas se não estiver sob controle manual
       if (!this.isUnderManualControl(phoneNumber)) {
-        const containsUrl = (text) => {
-          if (!text || typeof text !== 'string') return false;
-          const urlRegex = /\b((?:https?:\/\/|www\.)[\w-]+(?:\.[\w-]+)+(?:[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])?)\b/i;
-          return urlRegex.test(text);
-        };
-
         const isAttachment = !!message.hasMedia || (message.type && message.type !== 'chat');
         const isDocument = message.type === 'document';
-        const isLinkOnly = containsUrl(messageText);
+        const isImage = message.type === 'image';
+        const isVideo = message.type === 'video';
+        const isAudio = message.type === 'audio' || message.type === 'ptt';
 
-        if (isAttachment || isDocument || isLinkOnly) {
+        // SÓ responde para anexos reais (documentos, imagens, vídeos, áudios)
+        console.log(`🔍 [DEBUG] Verificando anexo (segunda verificação):`, {
+          phoneNumber,
+          messageType,
+          hasMedia: !!message.hasMedia,
+          isAttachment,
+          isDocument,
+          isImage,
+          isVideo,
+          isAudio,
+          messageText: messageText.substring(0, 50) + '...'
+        });
+        
+        if (isAttachment || isDocument || isImage || isVideo || isAudio) {
           try {
             const registrationLink = (config.company && config.company.registrationLink) ? config.company.registrationLink : (config.company && config.company.website ? config.company.website : '');
-            const noticeParts = [];
-            if (isDocument) noticeParts.push('documento');
-            else if (isAttachment) noticeParts.push('anexo');
-            if (isLinkOnly) noticeParts.push('link');
-            const whatReceived = noticeParts.length ? noticeParts.join(' e ') : 'conteúdo';
+            let whatReceived = 'um anexo';
+            
+            if (isDocument) whatReceived = 'um documento';
+            else if (isImage) whatReceived = 'uma imagem';
+            else if (isVideo) whatReceived = 'um vídeo';
+            else if (isAudio) whatReceived = 'um áudio';
 
             const guidance = `📄 Recebi ${whatReceived}.
 
@@ -807,7 +833,7 @@ No WhatsApp não processamos documentos diretamente. Após concluir o cadastro, 
             await this.saveAgentMessage(phoneNumber, guidance);
             return;
           } catch (sendError) {
-            console.error('Erro ao orientar cadastro para anexos/links:', sendError);
+            console.error('Erro ao orientar cadastro para anexos:', sendError);
           }
         }
       }
