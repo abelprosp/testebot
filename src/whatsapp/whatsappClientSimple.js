@@ -86,6 +86,10 @@ class WhatsAppClientSimple {
     // Sistema de controle manual
     this.manualControl = new Map(); // phoneNumber -> { isManual: boolean, agentId: string, takenAt: Date }
 
+    // Cache de perfis de candidatos
+    this.candidateProfiles = new Map(); // phoneNumber -> candidateProfile
+    this.messageCache = new Map(); // phoneNumber -> messageHistory
+
     // Sistema de retry automático
     this.autoReconnectEnabled = true;
     this.reconnectInterval = null;
@@ -587,11 +591,8 @@ Obrigado pela paciência! 🙏
       const manualInfo = this.getManualControlInfo(phoneNumber);
       const agentId = manualInfo ? manualInfo.agentId : 'atendente';
 
-      // Remove controle manual
-      this.manualControl.delete(phoneNumber);
-
-      // Remove da lista de conversas ativas
-      this.activeConversations.delete(phoneNumber);
+      // Limpa todos os caches da conversa
+      await this.clearAllConversationCaches(phoneNumber);
 
       // Envia mensagem de finalização definitiva
       const finalMessage = `✅ **Atendimento Finalizado**
@@ -642,11 +643,8 @@ Obrigado pela confiança! 🙏
     try {
       console.log(`⏰ Finalizando conversa com ${phoneNumber} por inatividade`);
       
-      // Remove da lista de conversas ativas
-      this.activeConversations.delete(phoneNumber);
-      
-      // Remove controle manual se existir
-      this.manualControl.delete(phoneNumber);
+      // Limpa todos os caches da conversa
+      await this.clearAllConversationCaches(phoneNumber);
       
       // Envia mensagem de finalização
       const finalMessage = `⏰ *Atendimento Finalizado*
@@ -665,7 +663,7 @@ Obrigado por escolher a ${config.company.name}! 🙏
       // Marca conversa como finalizada no banco
       await this.database.finalizeConversation(phoneNumber);
       
-      console.log(`✅ Conversa com ${phoneNumber} finalizada`);
+      console.log(`✅ Conversa com ${phoneNumber} finalizada e todos os caches limpos`);
       
     } catch (error) {
       console.error('Erro ao finalizar conversa:', error);
@@ -698,6 +696,56 @@ Obrigado por escolher a ${config.company.name}! 🙏
     
     // Se passou mais de 5 minutos, considera reiniciada
     return timeSinceLastActivity > 300000; // 5 minutos
+  }
+
+  // Método para limpar completamente todos os caches de uma conversa
+  async clearAllConversationCaches(phoneNumber) {
+    try {
+      console.log(`🧹 Limpando todos os caches para ${phoneNumber}`);
+      
+      // Remove da lista de conversas ativas
+      this.activeConversations.delete(phoneNumber);
+      
+      // Remove controle manual se existir
+      this.manualControl.delete(phoneNumber);
+      
+      // Limpa cache de perfis de candidatos
+      if (this.candidateProfiles && this.candidateProfiles.has(phoneNumber)) {
+        this.candidateProfiles.delete(phoneNumber);
+        console.log(`✅ Cache de perfil limpo para ${phoneNumber}`);
+      }
+      
+      // Limpa cache de mensagens
+      if (this.messageCache && this.messageCache.has(phoneNumber)) {
+        this.messageCache.delete(phoneNumber);
+        console.log(`✅ Cache de mensagens limpo para ${phoneNumber}`);
+      }
+      
+      // Limpa cache do JobService
+      if (this.groqClient && this.groqClient.jobService && typeof this.groqClient.jobService.refreshCache === 'function') {
+        await this.groqClient.jobService.refreshCache();
+        console.log(`✅ Cache do JobService limpo para ${phoneNumber}`);
+      }
+      
+      // Limpa cache de respostas do GroqClient
+      if (this.groqClient && this.groqClient.responseCache) {
+        let clearedCount = 0;
+        for (const [key, value] of this.groqClient.responseCache.entries()) {
+          if (key.includes(phoneNumber)) {
+            this.groqClient.responseCache.delete(key);
+            clearedCount++;
+          }
+        }
+        if (clearedCount > 0) {
+          console.log(`✅ ${clearedCount} entradas do cache do GroqClient limpas para ${phoneNumber}`);
+        }
+      }
+      
+      console.log(`✅ Todos os caches limpos para ${phoneNumber}`);
+      
+    } catch (error) {
+      console.error(`❌ Erro ao limpar caches para ${phoneNumber}:`, error);
+    }
   }
 
   async handleMessage(message) {
