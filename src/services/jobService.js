@@ -30,6 +30,12 @@ class JobService {
         return false;
       }
 
+      // Verificação especial para vaga de Secretária - sempre inativa
+      if (job.title && (job.title.toLowerCase().includes('secretaria') || job.title.toLowerCase().includes('secretária'))) {
+        console.log(`🚫 Vaga "${job.title}" está inativa (vaga de Secretária desativada manualmente)`);
+        return false;
+      }
+
       // Verifica se a vaga tem data de expiração e não expirou
       if (job.expires_at) {
         const expirationDate = new Date(job.expires_at);

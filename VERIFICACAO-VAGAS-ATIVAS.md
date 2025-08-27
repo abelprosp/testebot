@@ -18,6 +18,7 @@ O sistema verifica múltiplos critérios para determinar se uma vaga está ativa
 2. **Data de expiração**: Se existir `expires_at`, a data atual não pode ser posterior
 3. **Status da vaga**: Deve ser `active` ou `ativa`
 4. **Idade da vaga**: Vagas com mais de 90 dias (configurável) são consideradas inativas se não tiverem data de expiração
+5. **Verificação manual**: Vagas específicas podem ser desativadas manualmente no código (ex: vaga de Secretária)
 
 ### 📋 **Logs Detalhados**
 
@@ -29,6 +30,7 @@ O sistema mostra logs claros para cada verificação:
 🚫 Vaga "Analista de Marketing" expirou em 15/12/2024
 🚫 Vaga "Vendedor" tem status inativo: closed
 🚫 Vaga "Recepcionista" é muito antiga (120 dias, máximo: 90)
+🚫 Vaga "Secretária" está inativa (vaga de Secretária desativada manualmente)
 ```
 
 ## Configuração
