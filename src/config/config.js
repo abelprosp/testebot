@@ -30,7 +30,11 @@ module.exports = {
   conversation: {
     maxHistory: 10,
     responseTimeout: 30000,
-    timeoutDuration: 120000 // 2 minutos
+    timeoutDuration: 120000, // 2 minutos
+    // Configuração para controlar quando a IA responde
+    // true = só responde quando recebe mensagem (quando alguém te chama)
+    // false = responde sempre (incluindo quando você chama alguém)
+    onlyRespondToIncoming: true
   },
   
   database: {

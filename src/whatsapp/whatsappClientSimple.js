@@ -703,13 +703,21 @@ Obrigado por escolher a ${config.company.name}! 🙏
   async handleMessage(message) {
     try {
       // Ignora mensagens do próprio bot
-      if (message.fromMe) return;
+      if (message.fromMe) {
+        console.log(`🚫 Ignorando mensagem enviada pelo próprio bot`);
+        return;
+      }
 
       const phoneNumber = message.from;
       const messageText = message.body;
       const messageType = message.type;
 
-      console.log(`📱 Nova mensagem de ${phoneNumber}: ${messageText}`);
+      console.log(`📱 Nova mensagem recebida de ${phoneNumber}: ${messageText}`);
+
+      // Verifica configuração para só responder a mensagens recebidas
+      if (config.conversation.onlyRespondToIncoming) {
+        console.log(`✅ Configuração ativa: IA só responde quando alguém te chama`);
+      }
 
       // Verifica se a conversa foi finalizada
       const conversation = await this.database.getConversation(phoneNumber);
