@@ -18,7 +18,55 @@ class JobService {
     
     this.jobs = [];
     this.lastFetch = null;
-    this.cacheDuration = 5 * 60 * 1000; // 5 minutos
+    this.cacheDuration = config.jobs?.cacheDuration || 5 * 60 * 1000; // 5 minutos padrão
+  }
+
+  // Verifica se uma vaga está ativa
+  isJobActive(job) {
+    try {
+      // Verifica se a vaga tem o campo is_active e está true
+      if (job.is_active === false) {
+        console.log(`🚫 Vaga "${job.title}" está inativa (is_active: false)`);
+        return false;
+      }
+
+      // Verifica se a vaga tem data de expiração e não expirou
+      if (job.expires_at) {
+        const expirationDate = new Date(job.expires_at);
+        const currentDate = new Date();
+        
+        if (currentDate > expirationDate) {
+          console.log(`🚫 Vaga "${job.title}" expirou em ${expirationDate.toLocaleDateString()}`);
+          return false;
+        }
+      }
+
+      // Verifica se a vaga tem status e está ativa
+      if (job.status && job.status.toLowerCase() !== 'active' && job.status.toLowerCase() !== 'ativa') {
+        console.log(`🚫 Vaga "${job.title}" tem status inativo: ${job.status}`);
+        return false;
+      }
+
+      // Verifica se a vaga tem data de criação válida (não muito antiga)
+      if (job.created_at) {
+        const creationDate = new Date(job.created_at);
+        const currentDate = new Date();
+        const daysSinceCreation = (currentDate - creationDate) / (1000 * 60 * 60 * 24);
+        
+        // Se a vaga tem mais de X dias e não tem data de expiração, considera inativa
+        const maxAgeDays = config.jobs?.maxAgeDays || 90;
+        if (daysSinceCreation > maxAgeDays && !job.expires_at) {
+          console.log(`🚫 Vaga "${job.title}" é muito antiga (${Math.floor(daysSinceCreation)} dias, máximo: ${maxAgeDays})`);
+          return false;
+        }
+      }
+
+      console.log(`✅ Vaga "${job.title}" está ativa`);
+      return true;
+    } catch (error) {
+      console.error(`❌ Erro ao verificar status da vaga "${job.title}":`, error);
+      return false; // Em caso de erro, considera inativa por segurança
+    }
   }
 
   async loadJobs() {
@@ -42,19 +90,25 @@ class JobService {
         return [];
       }
 
-      this.jobs = data || [];
+      // Filtra apenas vagas realmente ativas
+      const activeJobs = (data || []).filter(job => this.isJobActive(job));
+      
+      this.jobs = activeJobs;
       this.lastFetch = Date.now();
       
-      console.log(`✅ ${this.jobs.length} vagas carregadas do Supabase`);
-      if (this.jobs.length > 0) {
-        console.log('📋 Primeira vaga:', {
-          title: this.jobs[0].title,
-          company: this.jobs[0].company,
-          location: this.jobs[0].location
+      console.log(`✅ ${activeJobs.length} vagas ativas carregadas do Supabase (de ${data?.length || 0} total)`);
+      if (activeJobs.length > 0) {
+        console.log('📋 Primeira vaga ativa:', {
+          title: activeJobs[0].title,
+          company: activeJobs[0].company,
+          location: activeJobs[0].location,
+          is_active: activeJobs[0].is_active,
+          status: activeJobs[0].status,
+          expires_at: activeJobs[0].expires_at
         });
       }
       
-      return this.jobs;
+      return activeJobs;
     } catch (error) {
       console.error('❌ Erro ao conectar com Supabase:', error);
       return [];
@@ -75,15 +129,23 @@ class JobService {
       const jobs = await this.getAllJobs();
       
       if (!jobs || jobs.length === 0) {
-        console.log('⚠️ Nenhuma vaga encontrada no Supabase');
+        console.log('⚠️ Nenhuma vaga ativa encontrada no Supabase');
+        return [];
+      }
+
+      // Filtra novamente para garantir que só retorna vagas ativas
+      const activeJobs = jobs.filter(job => this.isJobActive(job));
+      
+      if (activeJobs.length === 0) {
+        console.log('⚠️ Nenhuma vaga ativa após verificação adicional');
         return [];
       }
 
       if (!candidateProfile || Object.keys(candidateProfile).length === 0) {
-        return jobs; // Retorna TODAS as vagas se não há perfil
+        return activeJobs; // Retorna TODAS as vagas ativas se não há perfil
       }
 
-      const scoredJobs = jobs.map(job => {
+      const scoredJobs = activeJobs.map(job => {
         const score = this.calculateJobMatchScore(job, candidateProfile, candidateMessage);
         return { ...job, score };
       });
@@ -97,16 +159,16 @@ class JobService {
           job.title.toLowerCase().includes('motorista') || 
           job.description.toLowerCase().includes('motorista') ||
           job.description.toLowerCase().includes('cnh') ||
-          job.area.toLowerCase().includes('logística') ||
-          job.area.toLowerCase().includes('transporte')
+          job.area?.toLowerCase().includes('logística') ||
+          job.area?.toLowerCase().includes('transporte')
         );
         
         const otherJobs = scoredJobs.filter(job => 
           !job.title.toLowerCase().includes('motorista') && 
           !job.description.toLowerCase().includes('motorista') &&
           !job.description.toLowerCase().includes('cnh') &&
-          !job.area.toLowerCase().includes('logística') &&
-          !job.area.toLowerCase().includes('transporte')
+          !job.area?.toLowerCase().includes('logística') &&
+          !job.area?.toLowerCase().includes('transporte')
         );
 
         // Ordena vagas de motorista por score e depois adiciona outras vagas
@@ -119,7 +181,7 @@ class JobService {
 
         const finalJobs = [...sortedMotoristaJobs, ...sortedOtherJobs];
         
-        console.log(`🎯 Motorista detectado! Vagas encontradas:`, finalJobs.map(j => `${j.title}: ${(j.score * 100).toFixed(1)}%`));
+        console.log(`🎯 Motorista detectado! Vagas ativas encontradas:`, finalJobs.map(j => `${j.title}: ${(j.score * 100).toFixed(1)}%`));
         
         return finalJobs;
       }
@@ -130,7 +192,7 @@ class JobService {
         .sort((a, b) => b.score - a.score)
         .slice(0, 5); // Top 5 vagas
 
-      console.log(`🎯 Vagas encontradas com scores:`, matchingJobs.map(j => `${j.title}: ${(j.score * 100).toFixed(1)}%`));
+      console.log(`🎯 Vagas ativas encontradas com scores:`, matchingJobs.map(j => `${j.title}: ${(j.score * 100).toFixed(1)}%`));
 
       // Se não encontrou vagas adequadas, sugere alternativas
       if (matchingJobs.length === 0) {
@@ -267,10 +329,10 @@ class JobService {
   // Formata a lista de vagas para exibição
   formatJobsList(jobs) {
     if (!jobs || jobs.length === 0) {
-      return '😔 Desculpe, não encontrei vagas adequadas no momento. Mas não se preocupe! Vou continuar monitorando e assim que surgir uma oportunidade que combine com seu perfil, entrarei em contato!\n\n💡 Dica: Você pode me enviar uma nova mensagem a qualquer momento para verificar se há novas vagas disponíveis.';
+      return '😔 Desculpe, não encontrei vagas ativas adequadas no momento. Mas não se preocupe! Vou continuar monitorando e assim que surgir uma oportunidade que combine com seu perfil, entrarei em contato!\n\n💡 Dica: Você pode me enviar uma nova mensagem a qualquer momento para verificar se há novas vagas disponíveis.';
     }
 
-    let formattedList = '🎯 Vagas encontradas para você:\n\n';
+    let formattedList = '🎯 Vagas ativas encontradas para você:\n\n';
     
     jobs.forEach((job, index) => {
       formattedList += `${index + 1}. 🏢 ${job.title}\n`;
@@ -280,6 +342,12 @@ class JobService {
       
       if (job.salary_range) {
         formattedList += `💰 Salário: ${job.salary_range}\n`;
+      }
+      
+      // Mostra data de expiração se existir e se estiver configurado para mostrar
+      if (job.expires_at && config.jobs?.showExpirationDate !== false) {
+        const expirationDate = new Date(job.expires_at);
+        formattedList += `⏰ Válida até: ${expirationDate.toLocaleDateString('pt-BR')}\n`;
       }
       
       // Trunca a descrição para não ficar muito longa
@@ -314,7 +382,9 @@ class JobService {
         return [];
       }
 
-      return data || [];
+      // Filtra apenas vagas ativas
+      const activeJobs = (data || []).filter(job => this.isJobActive(job));
+      return activeJobs;
     } catch (error) {
       console.error('❌ Erro ao buscar vagas por área:', error);
       return [];
@@ -336,7 +406,9 @@ class JobService {
         return [];
       }
 
-      return data || [];
+      // Filtra apenas vagas ativas
+      const activeJobs = (data || []).filter(job => this.isJobActive(job));
+      return activeJobs;
     } catch (error) {
       console.error('❌ Erro ao buscar vagas por localização:', error);
       return [];
@@ -348,6 +420,35 @@ class JobService {
     console.log('🔄 Atualizando cache de vagas...');
     this.lastFetch = null;
     return await this.loadJobs();
+  }
+
+  // Verifica se há vagas ativas disponíveis
+  async hasActiveJobs() {
+    const jobs = await this.getAllJobs();
+    return jobs.length > 0;
+  }
+
+  // Obtém estatísticas de vagas ativas
+  async getActiveJobsStats() {
+    const jobs = await this.getAllJobs();
+    return {
+      total: jobs.length,
+      byArea: jobs.reduce((acc, job) => {
+        const area = job.area || 'Não especificada';
+        acc[area] = (acc[area] || 0) + 1;
+        return acc;
+      }, {}),
+      byLocation: jobs.reduce((acc, job) => {
+        const location = job.location || 'Não especificada';
+        acc[location] = (acc[location] || 0) + 1;
+        return acc;
+      }, {}),
+      byLevel: jobs.reduce((acc, job) => {
+        const level = job.level || 'Não especificado';
+        acc[level] = (acc[level] || 0) + 1;
+        return acc;
+      }, {})
+    };
   }
 }
 

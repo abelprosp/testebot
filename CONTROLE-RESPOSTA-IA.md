@@ -15,7 +15,9 @@ No arquivo `src/config/config.js`:
 
 ```javascript
 conversation: {
-  // ... outras configurações ...
+  maxHistory: 10,
+  responseTimeout: 30000,
+  timeoutDuration: 600000, // 10 minutos
   onlyRespondToIncoming: true  // true = só responde quando recebe mensagem
 }
 ```

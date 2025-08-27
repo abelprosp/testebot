@@ -30,11 +30,20 @@ module.exports = {
   conversation: {
     maxHistory: 10,
     responseTimeout: 30000,
-    timeoutDuration: 120000, // 2 minutos
+    timeoutDuration: 600000, // 10 minutos
     // Configuração para controlar quando a IA responde
     // true = só responde quando recebe mensagem (quando alguém te chama)
     // false = responde sempre (incluindo quando você chama alguém)
     onlyRespondToIncoming: true
+  },
+  
+  jobs: {
+    // Configurações para verificação de vagas ativas
+    maxAgeDays: 90, // Vagas com mais de 90 dias são consideradas inativas (se não tiverem data de expiração)
+    cacheDuration: 300000, // 5 minutos em cache
+    requireActiveStatus: true, // Sempre verificar se a vaga está ativa
+    showExpirationDate: true, // Mostrar data de expiração nas vagas
+    autoRefresh: true // Atualizar automaticamente o cache de vagas
   },
   
   database: {
