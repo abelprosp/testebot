@@ -702,15 +702,47 @@ Obrigado por escolher a ${config.company.name}! 🙏
 
   async handleMessage(message) {
     try {
+      // DEBUG: Log detalhado da mensagem para verificar propriedades
+      console.log(`🔍 [DEBUG] Mensagem recebida:`, {
+        fromMe: message.fromMe,
+        from: message.from,
+        body: message.body ? message.body.substring(0, 50) + '...' : 'sem texto',
+        type: message.type,
+        hasMedia: !!message.hasMedia,
+        timestamp: new Date().toISOString()
+      });
+
       // Ignora mensagens do próprio bot
       if (message.fromMe) {
         console.log(`🚫 Ignorando mensagem enviada pelo próprio bot`);
         return;
       }
 
+      // Verificação adicional: se a mensagem não tem 'from', pode ser uma mensagem enviada
+      if (!message.from) {
+        console.log(`🚫 Ignorando mensagem sem remetente (provavelmente enviada pelo bot)`);
+        return;
+      }
+
       const phoneNumber = message.from;
       const messageText = message.body;
       const messageType = message.type;
+
+      // Verificação adicional: se o número do telefone é o mesmo do bot, ignora
+      const botNumber = config.whatsapp.number;
+      const botNumberClean = botNumber.replace('@c.us', '');
+      const phoneNumberClean = phoneNumber.replace('@c.us', '');
+      
+      if (phoneNumber && botNumber && (phoneNumber.includes(botNumberClean) || phoneNumberClean === botNumberClean)) {
+        console.log(`🚫 Ignorando mensagem do próprio número do bot (${phoneNumberClean} === ${botNumberClean})`);
+        return;
+      }
+
+      // Verificação adicional: se a mensagem não tem texto ou é muito curta, pode ser uma mensagem de sistema
+      if (!messageText || messageText.trim().length < 2) {
+        console.log(`🚫 Ignorando mensagem muito curta ou vazia: "${messageText}"`);
+        return;
+      }
 
       console.log(`📱 Nova mensagem recebida de ${phoneNumber}: ${messageText}`);
 
